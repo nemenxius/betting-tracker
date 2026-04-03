@@ -71,7 +71,11 @@ const elements = {
   sortBy: document.querySelector("#sort-by"),
   statTotal: document.querySelector("#stat-total"),
   statProfit: document.querySelector("#stat-profit"),
-  statRoi: document.querySelector("#stat-roi")
+  statRoi: document.querySelector("#stat-roi"),
+  statAverageOdds: document.querySelector("#stat-average-odds"),
+  statTotalStake: document.querySelector("#stat-total-stake"),
+  statStatusBreakdown: document.querySelector("#stat-status-breakdown"),
+  statStatusDetail: document.querySelector("#stat-status-detail")
 };
 
 const defaultDate = new Date().toISOString().split("T")[0];
@@ -700,15 +704,27 @@ function updateAutocompleteOptions() {
   renderDataList(elements.sportOptions, suggestions.sports.concat(bets.map((bet) => bet.sport)));
 }
 
-function updateStats() {
-  const resolvedBets = bets.filter((bet) => bet.status !== "pending");
-  const totalProfit = bets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
-  const totalStake = resolvedBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+function updateStats(sourceBets) {
+  const resolvedBets = sourceBets.filter((bet) => bet.status !== "pending");
+  const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
+  const totalStake = sourceBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
+  const averageOdds = sourceBets.length
+    ? sourceBets.reduce((sum, bet) => sum + Number(bet.odds || 0), 0) / sourceBets.length
+    : 0;
+  const wins = sourceBets.filter((bet) => bet.status === "won" || bet.status === "half_won").length;
+  const losses = sourceBets.filter((bet) => bet.status === "lost" || bet.status === "half_lost").length;
+  const voids = sourceBets.filter((bet) => bet.status === "void" || bet.status === "partial_void").length;
+  const cashouts = sourceBets.filter((bet) => bet.status === "cashout").length;
+  const pending = sourceBets.filter((bet) => bet.status === "pending").length;
 
-  elements.statTotal.textContent = String(bets.length);
+  elements.statTotal.textContent = String(sourceBets.length);
   elements.statProfit.textContent = formatUnits(totalProfit);
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
+  elements.statAverageOdds.textContent = averageOdds.toFixed(2);
+  elements.statTotalStake.textContent = formatUnits(totalStake);
+  elements.statStatusBreakdown.textContent = `${wins}W / ${losses}L`;
+  elements.statStatusDetail.textContent = `${voids}V / ${cashouts}C / ${pending}P`;
 }
 
 function updatePagination(totalItems) {
@@ -810,7 +826,7 @@ function renderBets() {
     return String(right.bet_date).localeCompare(String(left.bet_date));
   });
 
-  updateStats();
+  updateStats(filteredBets);
 
   if (!currentUser) {
     elements.betsList.className = "bets-list empty-state";

@@ -428,13 +428,16 @@ button:hover {
 
 @media (max-width: 900px) {
   .topbar,
-  .summary-grid,
   .grid {
     grid-template-columns: 1fr;
   }
 
   .auth-inline-form {
     grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -454,7 +457,8 @@ button:hover {
 
   .actions,
   .inline-fields,
-  .inline-fields-3 {
+  .inline-fields-3,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 
