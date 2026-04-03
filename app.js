@@ -18,6 +18,9 @@ const elements = {
   userPanel: document.querySelector("#user-panel"),
   userEmail: document.querySelector("#user-email"),
   betForm: document.querySelector("#bet-form"),
+  editingBanner: document.querySelector("#editing-banner"),
+  cancelEditButton: document.querySelector("#cancel-edit-button"),
+  saveBetButton: document.querySelector("#save-bet-button"),
   tipster: document.querySelector("#tipster"),
   bookie: document.querySelector("#bookie"),
   sport: document.querySelector("#sport"),
@@ -38,10 +41,12 @@ const elements = {
   configWarning: document.querySelector("#config-warning"),
   filterStatus: document.querySelector("#filter-status"),
   filterQuery: document.querySelector("#filter-query"),
+  filterMonth: document.querySelector("#filter-month"),
   filterTipster: document.querySelector("#filter-tipster"),
   filterBookie: document.querySelector("#filter-bookie"),
   filterSport: document.querySelector("#filter-sport"),
   filterBetType: document.querySelector("#filter-bet-type"),
+  sortBy: document.querySelector("#sort-by"),
   statTotal: document.querySelector("#stat-total"),
   statProfit: document.querySelector("#stat-profit"),
   statRoi: document.querySelector("#stat-roi")
@@ -59,6 +64,7 @@ let suggestions = {
   sports: []
 };
 let authSubscription = null;
+let editingBetId = null;
 
 if (hasValidConfig) {
   supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
@@ -201,16 +207,53 @@ function updateStats() {
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
 }
 
+function resetBetForm() {
+  editingBetId = null;
+  elements.betForm.reset();
+  elements.betDate.value = defaultDate;
+  elements.status.value = "pending";
+  elements.betType.value = "";
+  elements.editingBanner.classList.add("hidden");
+  elements.saveBetButton.textContent = "Guardar aposta";
+}
+
+function startEditingBet(betId) {
+  const bet = bets.find((entry) => String(entry.id) === String(betId));
+  if (!bet) {
+    return;
+  }
+
+  editingBetId = bet.id;
+  elements.tipster.value = bet.tipster || "";
+  elements.bookie.value = bet.bookie || "";
+  elements.sport.value = bet.sport || "";
+  elements.eventName.value = bet.event_name || "";
+  elements.marketName.value = bet.market_name || "";
+  elements.betType.value = bet.bet_type || deriveBetType(bet.market_name);
+  elements.betDate.value = bet.bet_date || defaultDate;
+  elements.stake.value = bet.stake ?? "";
+  elements.odds.value = bet.odds ?? "";
+  elements.status.value = bet.status || "pending";
+  elements.profit.value = bet.profit ?? "";
+  elements.notes.value = bet.notes || "";
+  elements.editingBanner.classList.remove("hidden");
+  elements.saveBetButton.textContent = "Atualizar aposta";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function renderBets() {
   const query = elements.filterQuery.value.trim().toLowerCase();
   const filterStatus = elements.filterStatus.value;
+  const filterMonth = elements.filterMonth.value;
   const filterTipster = elements.filterTipster.value.trim().toLowerCase();
   const filterBookie = elements.filterBookie.value.trim().toLowerCase();
   const filterSport = elements.filterSport.value.trim().toLowerCase();
   const filterBetType = elements.filterBetType.value;
+  const sortBy = elements.sortBy.value;
 
   const visibleBets = bets.filter((bet) => {
     const matchesStatus = filterStatus === "all" || bet.status === filterStatus;
+    const matchesMonth = !filterMonth || String(bet.bet_date || "").startsWith(filterMonth);
     const matchesTipster = !filterTipster || String(bet.tipster || "").toLowerCase().includes(filterTipster);
     const matchesBookie = !filterBookie || String(bet.bookie || "").toLowerCase().includes(filterBookie);
     const matchesSport = !filterSport || String(bet.sport || "").toLowerCase().includes(filterSport);
@@ -222,7 +265,24 @@ function renderBets() {
       .toLowerCase();
     const matchesQuery = !query || haystack.includes(query);
 
-    return matchesStatus && matchesQuery && matchesTipster && matchesBookie && matchesSport && matchesBetType;
+    return matchesStatus && matchesMonth && matchesQuery && matchesTipster && matchesBookie && matchesSport && matchesBetType;
+  }).sort((left, right) => {
+    if (sortBy === "date_asc") {
+      return String(left.bet_date).localeCompare(String(right.bet_date));
+    }
+    if (sortBy === "profit_desc") {
+      return Number(right.profit || 0) - Number(left.profit || 0);
+    }
+    if (sortBy === "profit_asc") {
+      return Number(left.profit || 0) - Number(right.profit || 0);
+    }
+    if (sortBy === "stake_desc") {
+      return Number(right.stake || 0) - Number(left.stake || 0);
+    }
+    if (sortBy === "stake_asc") {
+      return Number(left.stake || 0) - Number(right.stake || 0);
+    }
+    return String(right.bet_date).localeCompare(String(left.bet_date));
   });
 
   updateStats();
@@ -265,6 +325,10 @@ function renderBets() {
             <span class="${profitClass}">Lucro: ${formatUnits(bet.profit)}</span>
           </div>
           ${notes}
+          <div class="bet-item-actions">
+            <button type="button" class="ghost-button" data-action="edit" data-id="${bet.id}">Editar</button>
+            <button type="button" class="ghost-button" data-action="delete" data-id="${bet.id}">Apagar</button>
+          </div>
         </article>
       `;
     })
@@ -300,6 +364,8 @@ function setAuthUi(user) {
 
   if (isLoggedIn) {
     clearAuthMessage();
+  } else {
+    resetBetForm();
   }
 
   elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
@@ -442,7 +508,11 @@ async function handleBetSubmit(event) {
     notes: elements.notes.value.trim() || null
   };
 
-  const { error } = await supabaseClient.from("bets").insert(payload);
+  const query = editingBetId
+    ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
+    : supabaseClient.from("bets").insert(payload);
+
+  const { error } = await query;
 
   if (error) {
     setMessage(error.message, "warning");
@@ -455,13 +525,44 @@ async function handleBetSubmit(event) {
     syncSuggestion("sports", payload.sport)
   ]);
 
-  elements.betForm.reset();
-  elements.betDate.value = defaultDate;
-  elements.status.value = "pending";
-  elements.betType.value = "";
-  setMessage("Aposta guardada com sucesso.");
+  setMessage(editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.");
+  resetBetForm();
   await fetchSuggestions();
   await fetchBets();
+}
+
+async function handleBetListClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+
+  const { action, id } = button.dataset;
+
+  if (action === "edit") {
+    startEditingBet(id);
+    return;
+  }
+
+  if (action === "delete") {
+    const confirmed = window.confirm("Queres mesmo apagar esta aposta?");
+    if (!confirmed) {
+      return;
+    }
+
+    const { error } = await supabaseClient.from("bets").delete().eq("id", id);
+    if (error) {
+      setMessage(error.message, "warning");
+      return;
+    }
+
+    if (String(editingBetId) === String(id)) {
+      resetBetForm();
+    }
+
+    setMessage("Aposta apagada com sucesso.");
+    await fetchBets();
+  }
 }
 
 async function init() {
@@ -497,14 +598,18 @@ async function init() {
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
 elements.betForm.addEventListener("submit", handleBetSubmit);
+elements.cancelEditButton.addEventListener("click", resetBetForm);
+elements.betsList.addEventListener("click", handleBetListClick);
 elements.marketName.addEventListener("input", () => {
   elements.betType.value = deriveBetType(elements.marketName.value);
 });
 elements.filterStatus.addEventListener("change", renderBets);
 elements.filterQuery.addEventListener("input", renderBets);
+elements.filterMonth.addEventListener("change", renderBets);
 elements.filterTipster.addEventListener("input", renderBets);
 elements.filterBookie.addEventListener("input", renderBets);
 elements.filterSport.addEventListener("input", renderBets);
 elements.filterBetType.addEventListener("change", renderBets);
+elements.sortBy.addEventListener("change", renderBets);
 
 init();

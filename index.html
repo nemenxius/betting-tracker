@@ -65,6 +65,10 @@
         </div>
 
         <form id="bet-form" class="stack">
+          <div id="editing-banner" class="notice hidden">
+            Estás a editar uma aposta.
+            <button id="cancel-edit-button" class="ghost-button" type="button">Cancelar</button>
+          </div>
           <div class="inline-fields inline-fields-3">
             <label>
               <span>Tipster</span>
@@ -153,6 +157,24 @@
         <label>
           <span>Pesquisar</span>
           <input id="filter-query" type="search" placeholder="Evento, mercado, casa...">
+        </label>
+      </div>
+
+      <div class="inline-fields">
+        <label>
+          <span>Mês</span>
+          <input id="filter-month" type="month">
+        </label>
+        <label>
+          <span>Ordenar</span>
+          <select id="sort-by">
+            <option value="date_desc">Data mais recente</option>
+            <option value="date_asc">Data mais antiga</option>
+            <option value="profit_desc">Lucro maior</option>
+            <option value="profit_asc">Lucro menor</option>
+            <option value="stake_desc">Stake maior</option>
+            <option value="stake_asc">Stake menor</option>
+          </select>
         </label>
       </div>
 

@@ -287,6 +287,16 @@ button:hover {
   padding: 18px;
 }
 
+.bet-item-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.bet-item-actions button {
+  padding: 10px 14px;
+}
+
 .bet-item-header,
 .bet-item-meta {
   display: flex;
