@@ -12,6 +12,8 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 - Filtros por estado, mês, tipster, bookie, sport, bet type e pesquisa
 - Ordenação por data, lucro e stake
 - Edição e remoção de apostas no histórico
+- Layout compacto com dark mode
+- Paginação no histórico
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI
 - SQL pronto para criar a tabela e as políticas RLS
 

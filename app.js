@@ -37,6 +37,10 @@ const elements = {
   profit: document.querySelector("#profit"),
   notes: document.querySelector("#notes"),
   betsList: document.querySelector("#bets-list"),
+  pagination: document.querySelector("#pagination"),
+  prevPageButton: document.querySelector("#prev-page-button"),
+  nextPageButton: document.querySelector("#next-page-button"),
+  pageIndicator: document.querySelector("#page-indicator"),
   messageBox: document.querySelector("#message-box"),
   configWarning: document.querySelector("#config-warning"),
   filterStatus: document.querySelector("#filter-status"),
@@ -65,6 +69,8 @@ let suggestions = {
 };
 let authSubscription = null;
 let editingBetId = null;
+let currentPage = 1;
+const PAGE_SIZE = 12;
 
 if (hasValidConfig) {
   supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
@@ -207,6 +213,22 @@ function updateStats() {
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
 }
 
+function updatePagination(totalItems) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+
+  if (totalItems <= PAGE_SIZE) {
+    elements.pagination.classList.add("hidden");
+    return totalPages;
+  }
+
+  elements.pagination.classList.remove("hidden");
+  elements.pageIndicator.textContent = `Página ${currentPage} de ${totalPages}`;
+  elements.prevPageButton.disabled = currentPage <= 1;
+  elements.nextPageButton.disabled = currentPage >= totalPages;
+  return totalPages;
+}
+
 function resetBetForm() {
   editingBetId = null;
   elements.betForm.reset();
@@ -251,7 +273,7 @@ function renderBets() {
   const filterBetType = elements.filterBetType.value;
   const sortBy = elements.sortBy.value;
 
-  const visibleBets = bets.filter((bet) => {
+  const filteredBets = bets.filter((bet) => {
     const matchesStatus = filterStatus === "all" || bet.status === filterStatus;
     const matchesMonth = !filterMonth || String(bet.bet_date || "").startsWith(filterMonth);
     const matchesTipster = !filterTipster || String(bet.tipster || "").toLowerCase().includes(filterTipster);
@@ -290,14 +312,21 @@ function renderBets() {
   if (!currentUser) {
     elements.betsList.className = "bets-list empty-state";
     elements.betsList.textContent = "Inicia sessão para veres e criares registos.";
+    elements.pagination.classList.add("hidden");
     return;
   }
 
-  if (!visibleBets.length) {
+  if (!filteredBets.length) {
     elements.betsList.className = "bets-list empty-state";
     elements.betsList.textContent = "Ainda não existem apostas para este filtro.";
+    elements.pagination.classList.add("hidden");
     return;
   }
+
+  const totalPages = updatePagination(filteredBets.length);
+  currentPage = Math.min(currentPage, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const visibleBets = filteredBets.slice(startIndex, startIndex + PAGE_SIZE);
 
   elements.betsList.className = "bets-list";
   elements.betsList.innerHTML = visibleBets
@@ -366,6 +395,7 @@ function setAuthUi(user) {
     clearAuthMessage();
   } else {
     resetBetForm();
+    currentPage = 1;
   }
 
   elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
@@ -380,6 +410,7 @@ async function fetchBets() {
     bets = [];
     suggestions = { tipsters: [], bookies: [], sports: [] };
     updateAutocompleteOptions();
+    currentPage = 1;
     renderBets();
     return;
   }
@@ -603,13 +634,45 @@ elements.betsList.addEventListener("click", handleBetListClick);
 elements.marketName.addEventListener("input", () => {
   elements.betType.value = deriveBetType(elements.marketName.value);
 });
-elements.filterStatus.addEventListener("change", renderBets);
-elements.filterQuery.addEventListener("input", renderBets);
-elements.filterMonth.addEventListener("change", renderBets);
-elements.filterTipster.addEventListener("input", renderBets);
-elements.filterBookie.addEventListener("input", renderBets);
-elements.filterSport.addEventListener("input", renderBets);
-elements.filterBetType.addEventListener("change", renderBets);
-elements.sortBy.addEventListener("change", renderBets);
+elements.filterStatus.addEventListener("change", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterQuery.addEventListener("input", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterMonth.addEventListener("change", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterTipster.addEventListener("input", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterBookie.addEventListener("input", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterSport.addEventListener("input", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.filterBetType.addEventListener("change", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.sortBy.addEventListener("change", () => {
+  currentPage = 1;
+  renderBets();
+});
+elements.prevPageButton.addEventListener("click", () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderBets();
+});
+elements.nextPageButton.addEventListener("click", () => {
+  currentPage += 1;
+  renderBets();
+});
 
 init();
