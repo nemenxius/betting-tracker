@@ -17,6 +17,12 @@ const elements = {
   openEntryButton: document.querySelector("#open-entry-button"),
   closeEntryButton: document.querySelector("#close-entry-button"),
   entryModal: document.querySelector("#entry-modal"),
+  openOcrButton: document.querySelector("#open-ocr-button"),
+  closeOcrButton: document.querySelector("#close-ocr-button"),
+  ocrModal: document.querySelector("#ocr-modal"),
+  ocrMessageBox: document.querySelector("#ocr-message-box"),
+  ocrFile: document.querySelector("#ocr-file"),
+  ocrButton: document.querySelector("#ocr-button"),
   openImportButton: document.querySelector("#open-import-button"),
   closeImportButton: document.querySelector("#close-import-button"),
   importModal: document.querySelector("#import-modal"),
@@ -137,6 +143,14 @@ function clearImportMessage() {
   clearNotice(elements.importMessageBox);
 }
 
+function setOcrMessage(message, tone = "info") {
+  setNotice(elements.ocrMessageBox, message, tone);
+}
+
+function clearOcrMessage() {
+  clearNotice(elements.ocrMessageBox);
+}
+
 function openImportModal() {
   if (!currentUser) {
     return;
@@ -152,6 +166,25 @@ function closeImportModal() {
   elements.importFile.value = "";
   clearImportMessage();
   if (elements.entryModal.classList.contains("hidden")) {
+    document.body.style.overflow = "";
+  }
+}
+
+function openOcrModal() {
+  if (!currentUser) {
+    return;
+  }
+
+  clearOcrMessage();
+  document.body.style.overflow = "hidden";
+  elements.ocrModal.classList.remove("hidden");
+}
+
+function closeOcrModal() {
+  elements.ocrModal.classList.add("hidden");
+  elements.ocrFile.value = "";
+  clearOcrMessage();
+  if (elements.entryModal.classList.contains("hidden") && elements.importModal.classList.contains("hidden")) {
     document.body.style.overflow = "";
   }
 }
@@ -223,6 +256,149 @@ function deriveBetType(marketName) {
   }
 
   return "Other";
+}
+
+function normalizeOcrText(text) {
+  return text
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+function extractDatesFromLines(lines) {
+  const dates = [];
+  const regex = /\b(\d{2})[./](\d{2})[./](\d{4})\b/g;
+
+  lines.forEach((line) => {
+    let match;
+    while ((match = regex.exec(line)) !== null) {
+      const [, day, month, year] = match;
+      dates.push(`${year}-${month}-${day}`);
+    }
+  });
+
+  return [...new Set(dates)];
+}
+
+function detectEventFromLines(lines) {
+  const versusLine = lines.find((line) => /\b(vs| - )\b/i.test(line) && !/single|pending|pick|result|total:/i.test(line));
+  if (versusLine) {
+    return versusLine.replace(/\s+/g, " ").trim();
+  }
+
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const first = lines[index];
+    const second = lines[index + 1];
+    const looksLikeMeta = /single|pending|pick|result|total:|odds|stake|bet_id|liga|league|\d{2}[./]\d{2}[./]\d{4}/i;
+    if (
+      first.length > 3 &&
+      second.length > 3 &&
+      !looksLikeMeta.test(first) &&
+      !looksLikeMeta.test(second)
+    ) {
+      return `${first} - ${second}`;
+    }
+  }
+
+  return "";
+}
+
+function detectMarketFromLines(lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^total:/i.test(line)) {
+      const rest = line.replace(/^total:\s*/i, "").trim();
+      if (rest) {
+        return rest;
+      }
+
+      if (lines[index + 1]) {
+        return lines[index + 1];
+      }
+    }
+  }
+
+  const directMatch = lines.find((line) => /(btts|under|over|handicap|mais|menos|acima|abaixo|result)/i.test(line));
+  return directMatch || "";
+}
+
+function detectOddsFromLines(lines) {
+  const exactLine = lines.find((line) => /^\d+[.,]\d{2}$/.test(line));
+  if (exactLine) {
+    return Number(exactLine.replace(",", "."));
+  }
+
+  const singleBetLine = lines.find((line) => /single bet/i.test(line));
+  if (singleBetLine) {
+    const match = singleBetLine.match(/(\d+[.,]\d{2})/);
+    if (match) {
+      return Number(match[1].replace(",", "."));
+    }
+  }
+
+  const candidates = [];
+  lines.forEach((line) => {
+    const matches = line.match(/\d+[.,]\d{2}/g) || [];
+    matches.forEach((value) => {
+      const parsed = Number(value.replace(",", "."));
+      if (parsed >= 1.01 && parsed <= 20) {
+        candidates.push(parsed);
+      }
+    });
+  });
+
+  return candidates[0] || "";
+}
+
+function detectStatusFromLines(lines) {
+  const joined = lines.join(" ").toLowerCase();
+
+  if (joined.includes("pending")) {
+    return "pending";
+  }
+  if (joined.includes("won")) {
+    return "won";
+  }
+  if (joined.includes("lost")) {
+    return "lost";
+  }
+  if (joined.includes("refund") || joined.includes("void")) {
+    return "void";
+  }
+
+  return "pending";
+}
+
+function extractBetFromOcrText(text) {
+  const lines = normalizeOcrText(text);
+  const dates = extractDatesFromLines(lines);
+  const market = detectMarketFromLines(lines);
+  const eventName = detectEventFromLines(lines);
+  const odds = detectOddsFromLines(lines);
+  const status = detectStatusFromLines(lines);
+  const hasLikelyGameDate = dates.length >= 2;
+
+  return {
+    eventName,
+    marketName: market,
+    odds,
+    status,
+    betDate: hasLikelyGameDate ? dates[1] : "",
+    notes: "Pré-preenchido por OCR. Confirma os dados antes de guardar."
+  };
+}
+
+function applyOcrPrefill(prefill) {
+  openEntryModal();
+  elements.eventName.value = prefill.eventName || "";
+  elements.marketName.value = prefill.marketName || "";
+  elements.betType.value = deriveBetType(prefill.marketName || "");
+  elements.odds.value = prefill.odds || "";
+  elements.status.value = prefill.status || "pending";
+  elements.betDate.value = prefill.betDate || "";
+  elements.notes.value = prefill.notes || "";
+  updateSettlementVisibility();
 }
 
 function normalizeImportedStatus(rawStatus) {
@@ -618,6 +794,7 @@ function setAuthUi(user) {
     currentPage = 1;
     closeEntryModal();
     closeImportModal();
+    closeOcrModal();
   }
 
   elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
@@ -944,6 +1121,51 @@ async function handleImportCsv() {
   }
 }
 
+async function handleOcrImport() {
+  clearOcrMessage();
+
+  if (!currentUser) {
+    setOcrMessage("Inicia sessão antes de analisar uma imagem.", "warning");
+    return;
+  }
+
+  const file = elements.ocrFile.files[0];
+  if (!file) {
+    setOcrMessage("Seleciona uma imagem primeiro.", "warning");
+    return;
+  }
+
+  if (!window.Tesseract) {
+    setOcrMessage("OCR indisponível neste browser.", "warning");
+    return;
+  }
+
+  elements.ocrButton.disabled = true;
+  elements.ocrButton.textContent = "A analisar...";
+  setOcrMessage("A ler texto da imagem...");
+
+  try {
+    const worker = await window.Tesseract.createWorker("eng");
+    const result = await worker.recognize(file);
+    await worker.terminate();
+
+    const extracted = extractBetFromOcrText(result.data.text || "");
+    if (!extracted.marketName && !extracted.eventName) {
+      setOcrMessage("Não consegui extrair informação suficiente desta imagem.", "warning");
+      return;
+    }
+
+    applyOcrPrefill(extracted);
+    closeOcrModal();
+    setMessage("Campos pré-preenchidos por OCR. Revê e guarda a aposta.");
+  } catch (error) {
+    setOcrMessage(error.message || "Ocorreu um erro ao analisar a imagem.", "warning");
+  } finally {
+    elements.ocrButton.disabled = false;
+    elements.ocrButton.textContent = "Analisar imagem";
+  }
+}
+
 async function init() {
   if (!supabaseClient) {
     return;
@@ -978,6 +1200,9 @@ elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
 elements.openEntryButton.addEventListener("click", openEntryModal);
 elements.closeEntryButton.addEventListener("click", closeEntryModal);
+elements.openOcrButton.addEventListener("click", openOcrModal);
+elements.closeOcrButton.addEventListener("click", closeOcrModal);
+elements.ocrButton.addEventListener("click", handleOcrImport);
 elements.openImportButton.addEventListener("click", openImportModal);
 elements.closeImportButton.addEventListener("click", closeImportModal);
 elements.importButton.addEventListener("click", handleImportCsv);
@@ -1036,6 +1261,11 @@ elements.entryModal.addEventListener("click", (event) => {
 elements.importModal.addEventListener("click", (event) => {
   if (event.target === elements.importModal) {
     closeImportModal();
+  }
+});
+elements.ocrModal.addEventListener("click", (event) => {
+  if (event.target === elements.ocrModal) {
+    closeOcrModal();
   }
 });
 

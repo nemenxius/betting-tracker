@@ -34,6 +34,7 @@
       <div id="user-panel" class="user-panel hidden topbar-user">
         <p>Ligado como <strong id="user-email"></strong></p>
         <button id="open-entry-button" class="ghost-button" type="button">Nova aposta</button>
+        <button id="open-ocr-button" class="ghost-button" type="button">Ler imagem</button>
         <button id="open-import-button" class="ghost-button" type="button">Importar</button>
         <button id="logout-button" class="ghost-button" type="button">Sair</button>
       </div>
@@ -251,12 +252,36 @@
     </div>
   </div>
 
+  <div id="ocr-modal" class="modal-overlay hidden">
+    <div class="modal-card card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">OCR</p>
+          <h2>Ler aposta por imagem</h2>
+        </div>
+        <button id="close-ocr-button" class="ghost-button" type="button">Fechar</button>
+      </div>
+      <div id="ocr-message-box" class="notice hidden"></div>
+      <div class="stack">
+        <label>
+          <span>Imagem da aposta</span>
+          <input id="ocr-file" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+        </label>
+        <p class="muted">A app tenta pré-preencher evento, mercado, odds, estado e, em alguns layouts, a data do jogo. Stake em euros é ignorada.</p>
+        <div class="import-actions">
+          <button id="ocr-button" type="button">Analisar imagem</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <datalist id="tipster-options"></datalist>
   <datalist id="bookie-options"></datalist>
   <datalist id="sport-options"></datalist>
 
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

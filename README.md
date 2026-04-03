@@ -18,6 +18,7 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 - Paginação no histórico
 - Importação de apostas a partir de ficheiro CSV apenas após autenticação
 - Registo manual de apostas através de modal apenas após autenticação
+- Leitura OCR de imagens para pré-preencher apostas antes de guardar
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI
 - SQL pronto para criar a tabela e as políticas RLS
 
