@@ -15,6 +15,7 @@ const elements = {
   password: document.querySelector("#auth-password"),
   signupButton: document.querySelector("#signup-button"),
   logoutButton: document.querySelector("#logout-button"),
+  authMessageBox: document.querySelector("#auth-message-box"),
   userPanel: document.querySelector("#user-panel"),
   userEmail: document.querySelector("#user-email"),
   betForm: document.querySelector("#bet-form"),
@@ -61,19 +62,35 @@ function disableForms(disabled) {
   });
 }
 
-function setMessage(message, tone = "info") {
-  elements.messageBox.textContent = message;
-  elements.messageBox.classList.remove("hidden", "warning");
+function setNotice(target, message, tone) {
+  target.textContent = message;
+  target.classList.remove("hidden", "warning");
 
   if (tone === "warning") {
-    elements.messageBox.classList.add("warning");
+    target.classList.add("warning");
   }
 }
 
+function clearNotice(target) {
+  target.classList.add("hidden");
+  target.textContent = "";
+  target.classList.remove("warning");
+}
+
+function setMessage(message, tone = "info") {
+  setNotice(elements.messageBox, message, tone);
+}
+
 function clearMessage() {
-  elements.messageBox.classList.add("hidden");
-  elements.messageBox.textContent = "";
-  elements.messageBox.classList.remove("warning");
+  clearNotice(elements.messageBox);
+}
+
+function setAuthMessage(message, tone = "info") {
+  setNotice(elements.authMessageBox, message, tone);
+}
+
+function clearAuthMessage() {
+  clearNotice(elements.authMessageBox);
 }
 
 function formatCurrency(value) {
@@ -209,6 +226,10 @@ function setAuthUi(user) {
   elements.logoutButton.classList.toggle("hidden", !isLoggedIn);
   elements.authForm.classList.toggle("hidden", isLoggedIn);
 
+  if (isLoggedIn) {
+    clearAuthMessage();
+  }
+
   elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
     field.disabled = !isLoggedIn;
   });
@@ -241,42 +262,62 @@ async function fetchBets() {
 async function handleAuthSubmit(event) {
   event.preventDefault();
   clearMessage();
+  clearAuthMessage();
 
   const email = elements.email.value.trim();
   const password = elements.password.value.trim();
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    setMessage(error.message, "warning");
-    return;
+    if (error) {
+      setAuthMessage(error.message, "warning");
+      return;
+    }
+
+    setAuthMessage("Sessão iniciada com sucesso.");
+    elements.authForm.reset();
+  } catch (error) {
+    setAuthMessage(error.message || "Ocorreu um erro ao iniciar sessão.", "warning");
   }
-
-  setMessage("Sessão iniciada com sucesso.");
-  elements.authForm.reset();
 }
 
 async function handleSignup() {
   clearMessage();
+  clearAuthMessage();
   const email = elements.email.value.trim();
   const password = elements.password.value.trim();
 
   if (!email || !password) {
-    setMessage("Preenche email e password para criar conta.", "warning");
+    setAuthMessage("Preenche email e password para criar conta.", "warning");
     return;
   }
 
-  const { error } = await supabaseClient.auth.signUp({ email, password });
+  elements.signupButton.disabled = true;
 
-  if (error) {
-    setMessage(error.message, "warning");
-    return;
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+    if (error) {
+      setAuthMessage(error.message, "warning");
+      return;
+    }
+
+    if (data.user) {
+      setAuthMessage("Conta criada. Se a confirmação por email estiver ativa, confirma primeiro o teu email.");
+      return;
+    }
+
+    setAuthMessage("Pedido enviado. Verifica o email ou as definições de autenticação da Supabase.");
+  } catch (error) {
+    setAuthMessage(error.message || "Ocorreu um erro ao criar conta.", "warning");
+  } finally {
+    elements.signupButton.disabled = false;
   }
-
-  setMessage("Conta criada. Se a confirmação por email estiver ativa, confirma primeiro o teu email.");
 }
 
 async function handleLogout() {
+  clearAuthMessage();
   const { error } = await supabaseClient.auth.signOut();
 
   if (error) {
