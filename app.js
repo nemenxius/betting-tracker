@@ -143,6 +143,7 @@ function openImportModal() {
   }
 
   clearImportMessage();
+  document.body.style.overflow = "hidden";
   elements.importModal.classList.remove("hidden");
 }
 
@@ -150,6 +151,9 @@ function closeImportModal() {
   elements.importModal.classList.add("hidden");
   elements.importFile.value = "";
   clearImportMessage();
+  if (elements.entryModal.classList.contains("hidden")) {
+    document.body.style.overflow = "";
+  }
 }
 
 function openEntryModal() {
@@ -157,11 +161,15 @@ function openEntryModal() {
     return;
   }
 
+  document.body.style.overflow = "hidden";
   elements.entryModal.classList.remove("hidden");
 }
 
 function closeEntryModal() {
   elements.entryModal.classList.add("hidden");
+  if (elements.importModal.classList.contains("hidden")) {
+    document.body.style.overflow = "";
+  }
 }
 
 function formatUnits(value) {
@@ -777,8 +785,13 @@ async function handleBetListClick(event) {
   }
 
   if (action === "delete") {
-    const confirmed = window.confirm("Queres mesmo apagar esta aposta?");
-    if (!confirmed) {
+    const firstConfirm = window.confirm("Queres mesmo apagar esta aposta?");
+    if (!firstConfirm) {
+      return;
+    }
+
+    const secondConfirm = window.confirm("Confirma novamente: esta ação é irreversível.");
+    if (!secondConfirm) {
       return;
     }
 
@@ -949,6 +962,16 @@ elements.prevPageButton.addEventListener("click", () => {
 elements.nextPageButton.addEventListener("click", () => {
   currentPage += 1;
   renderBets();
+});
+elements.entryModal.addEventListener("click", (event) => {
+  if (event.target === elements.entryModal) {
+    closeEntryModal();
+  }
+});
+elements.importModal.addEventListener("click", (event) => {
+  if (event.target === elements.importModal) {
+    closeImportModal();
+  }
 });
 
 init();
