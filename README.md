@@ -1,10 +1,11 @@
 # Registo de Apostas
 
 App web minimalista para registar apostas com Supabase e alojar num repositório Git.
+Os utilizadores são geridos diretamente no painel da Supabase.
 
 ## O que inclui
 
-- Login e registo com email/password via Supabase Auth
+- Login com email/password via Supabase Auth
 - Registo de apostas com evento, mercado, stake, odds, resultado, lucro e notas
 - Filtros por estado e pesquisa
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI

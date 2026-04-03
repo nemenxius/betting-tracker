@@ -13,7 +13,6 @@ const elements = {
   authForm: document.querySelector("#auth-form"),
   email: document.querySelector("#auth-email"),
   password: document.querySelector("#auth-password"),
-  signupButton: document.querySelector("#signup-button"),
   logoutButton: document.querySelector("#logout-button"),
   authMessageBox: document.querySelector("#auth-message-box"),
   userPanel: document.querySelector("#user-panel"),
@@ -282,40 +281,6 @@ async function handleAuthSubmit(event) {
   }
 }
 
-async function handleSignup() {
-  clearMessage();
-  clearAuthMessage();
-  const email = elements.email.value.trim();
-  const password = elements.password.value.trim();
-
-  if (!email || !password) {
-    setAuthMessage("Preenche email e password para criar conta.", "warning");
-    return;
-  }
-
-  elements.signupButton.disabled = true;
-
-  try {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-
-    if (error) {
-      setAuthMessage(error.message, "warning");
-      return;
-    }
-
-    if (data.user) {
-      setAuthMessage("Conta criada. Se a confirmação por email estiver ativa, confirma primeiro o teu email.");
-      return;
-    }
-
-    setAuthMessage("Pedido enviado. Verifica o email ou as definições de autenticação da Supabase.");
-  } catch (error) {
-    setAuthMessage(error.message || "Ocorreu um erro ao criar conta.", "warning");
-  } finally {
-    elements.signupButton.disabled = false;
-  }
-}
-
 async function handleLogout() {
   clearAuthMessage();
   const { error } = await supabaseClient.auth.signOut();
@@ -393,7 +358,6 @@ async function init() {
 }
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
-elements.signupButton.addEventListener("click", handleSignup);
 elements.logoutButton.addEventListener("click", handleLogout);
 elements.betForm.addEventListener("submit", handleBetSubmit);
 elements.filterStatus.addEventListener("change", renderBets);
