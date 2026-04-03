@@ -285,6 +285,7 @@ function stripScorePrefix(line) {
   return line
     .replace(/^\d+[:.]\d+\s*/, "")
     .replace(/\(\d+[-:]\d+\)\s*/g, "")
+    .replace(/^&\s*/, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -303,7 +304,12 @@ function extractMarketSegment(line) {
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
     if (match) {
-      return match[0].replace(/\b25\b/g, "2.5").replace(/\s+/g, " ").trim();
+      return match[0]
+        .replace(/\bunder\s*25\b/i, "under 2.5")
+        .replace(/\bover\s*25\b/i, "over 2.5")
+        .replace(/\b25\b/g, "2.5")
+        .replace(/\s+/g, " ")
+        .trim();
     }
   }
 
@@ -327,6 +333,20 @@ function extractDatesFromLines(lines) {
 
 function detectEventFromLines(lines) {
   const cleanLines = lines.map((line) => stripScorePrefix(line));
+
+  for (let index = 0; index < cleanLines.length - 1; index += 1) {
+    const first = cleanLines[index];
+    const second = cleanLines[index + 1];
+
+    if (/total:/i.test(first) && extractMarketSegment(second)) {
+      const homeTeam = first.replace(/total:.*/i, "").trim();
+      const awayTeam = second.replace(extractMarketSegment(second), "").trim();
+
+      if (homeTeam && awayTeam) {
+        return `${homeTeam} - ${awayTeam}`;
+      }
+    }
+  }
 
   const versusLine = cleanLines.find((line) => /\b(vs| - )\b/i.test(line) && !/single|pending|pick|result|total:|bet_id|liga|league|\d{2}[./]\d{2}[./]\d{4}/i.test(line));
   if (versusLine) {
@@ -355,7 +375,7 @@ function detectEventFromLines(lines) {
 
 function detectMarketFromLines(lines) {
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
+    const line = stripScorePrefix(lines[index]);
     if (/^total:/i.test(line)) {
       const rest = line.replace(/^total:\s*/i, "").trim();
       if (rest) {
@@ -368,6 +388,13 @@ function detectMarketFromLines(lines) {
           return nextLine;
         }
       }
+    }
+  }
+
+  for (const line of lines) {
+    const extracted = extractMarketSegment(line);
+    if (extracted) {
+      return extracted;
     }
   }
 
@@ -1213,6 +1240,9 @@ async function handleOcrImport() {
 
   try {
     const worker = await window.Tesseract.createWorker("eng");
+    await worker.setParameters({
+      tessedit_pageseg_mode: 6
+    });
     const result = await worker.recognize(file);
     await worker.terminate();
     elements.ocrDebugText.textContent = result.data.text || "";
