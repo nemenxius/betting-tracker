@@ -53,6 +53,11 @@ elements.betDate.value = defaultDate;
 let supabaseClient = null;
 let currentUser = null;
 let bets = [];
+let suggestions = {
+  tipsters: [],
+  bookies: [],
+  sports: []
+};
 let authSubscription = null;
 
 if (hasValidConfig) {
@@ -102,11 +107,8 @@ function clearAuthMessage() {
   clearNotice(elements.authMessageBox);
 }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat("pt-PT", {
-    style: "currency",
-    currency: "EUR"
-  }).format(Number(value || 0));
+function formatUnits(value) {
+  return `${Number(value || 0).toFixed(2)}u`;
 }
 
 function formatStatus(status) {
@@ -183,9 +185,9 @@ function renderDataList(target, values) {
 }
 
 function updateAutocompleteOptions() {
-  renderDataList(elements.tipsterOptions, bets.map((bet) => bet.tipster));
-  renderDataList(elements.bookieOptions, bets.map((bet) => bet.bookie));
-  renderDataList(elements.sportOptions, bets.map((bet) => bet.sport));
+  renderDataList(elements.tipsterOptions, suggestions.tipsters.concat(bets.map((bet) => bet.tipster)));
+  renderDataList(elements.bookieOptions, suggestions.bookies.concat(bets.map((bet) => bet.bookie)));
+  renderDataList(elements.sportOptions, suggestions.sports.concat(bets.map((bet) => bet.sport)));
 }
 
 function updateStats() {
@@ -195,7 +197,7 @@ function updateStats() {
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
 
   elements.statTotal.textContent = String(bets.length);
-  elements.statProfit.textContent = formatCurrency(totalProfit);
+  elements.statProfit.textContent = formatUnits(totalProfit);
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
 }
 
@@ -258,9 +260,9 @@ function renderBets() {
             <span>${escapeHtml(bet.bookie || "Sem bookie")}</span>
             <span>${escapeHtml(bet.sport || "Sem sport")}</span>
             <span>${escapeHtml(bet.bet_type || "Other")}</span>
-            <span>Stake: ${formatCurrency(bet.stake)}</span>
+            <span>Stake: ${formatUnits(bet.stake)}</span>
             <span>Odds: ${Number(bet.odds).toFixed(2)}</span>
-            <span class="${profitClass}">Lucro: ${formatCurrency(bet.profit)}</span>
+            <span class="${profitClass}">Lucro: ${formatUnits(bet.profit)}</span>
           </div>
           ${notes}
         </article>
@@ -310,6 +312,8 @@ function setAuthUi(user) {
 async function fetchBets() {
   if (!supabaseClient || !currentUser) {
     bets = [];
+    suggestions = { tipsters: [], bookies: [], sports: [] };
+    updateAutocompleteOptions();
     renderBets();
     return;
   }
@@ -333,6 +337,49 @@ async function fetchBets() {
   }));
   updateAutocompleteOptions();
   renderBets();
+}
+
+async function fetchSuggestions() {
+  if (!supabaseClient || !currentUser) {
+    suggestions = { tipsters: [], bookies: [], sports: [] };
+    updateAutocompleteOptions();
+    return;
+  }
+
+  const [tipstersResult, bookiesResult, sportsResult] = await Promise.all([
+    supabaseClient.from("tipsters").select("name").order("name", { ascending: true }),
+    supabaseClient.from("bookies").select("name").order("name", { ascending: true }),
+    supabaseClient.from("sports").select("name").order("name", { ascending: true })
+  ]);
+
+  const maybeError = tipstersResult.error || bookiesResult.error || sportsResult.error;
+  if (maybeError) {
+    setMessage(maybeError.message, "warning");
+    return;
+  }
+
+  suggestions = {
+    tipsters: (tipstersResult.data || []).map((row) => row.name),
+    bookies: (bookiesResult.data || []).map((row) => row.name),
+    sports: (sportsResult.data || []).map((row) => row.name)
+  };
+
+  updateAutocompleteOptions();
+}
+
+async function syncSuggestion(table, value) {
+  const cleanValue = String(value || "").trim();
+  if (!cleanValue) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from(table)
+    .upsert({ name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true });
+
+  if (error) {
+    setMessage(error.message, "warning");
+  }
 }
 
 async function handleAuthSubmit(event) {
@@ -402,11 +449,18 @@ async function handleBetSubmit(event) {
     return;
   }
 
+  await Promise.all([
+    syncSuggestion("tipsters", payload.tipster),
+    syncSuggestion("bookies", payload.bookie),
+    syncSuggestion("sports", payload.sport)
+  ]);
+
   elements.betForm.reset();
   elements.betDate.value = defaultDate;
   elements.status.value = "pending";
   elements.betType.value = "";
   setMessage("Aposta guardada com sucesso.");
+  await fetchSuggestions();
   await fetchBets();
 }
 
@@ -425,6 +479,7 @@ async function init() {
   setAuthUi(data.session ? data.session.user : null);
 
   if (data.session && data.session.user) {
+    await fetchSuggestions();
     await fetchBets();
   }
 
@@ -434,6 +489,7 @@ async function init() {
 
   authSubscription = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     setAuthUi(session ? session.user : null);
+    await fetchSuggestions();
     await fetchBets();
   });
 }

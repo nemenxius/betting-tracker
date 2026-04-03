@@ -57,13 +57,17 @@ body {
   grid-template-columns: auto 1fr auto;
   gap: 16px;
   align-items: center;
-  padding: 18px 22px;
-  margin-bottom: 20px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
 }
 
 .topbar-copy h2,
 .topbar-copy p {
   margin-bottom: 0;
+}
+
+.topbar-copy h2 {
+  font-size: 1rem;
 }
 
 .topbar-notice {
@@ -72,7 +76,7 @@ body {
 
 .auth-inline-form {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(140px, 180px) auto;
+  grid-template-columns: minmax(180px, 210px) minmax(130px, 160px) auto;
   gap: 10px;
   align-items: center;
 }
@@ -88,12 +92,37 @@ body {
   margin-bottom: 0;
 }
 
-.hero {
+.summary-grid {
   display: grid;
-  gap: 24px;
-  grid-template-columns: 1.5fr 1fr;
-  padding: 32px;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 20px;
+}
+
+.summary-card {
+  padding: 20px 22px;
+}
+
+.summary-card small {
+  display: block;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.summary-card span {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.summary-card p {
+  margin-bottom: 0;
+  color: var(--muted);
 }
 
 .eyebrow {
@@ -122,30 +151,7 @@ h2 {
   font-size: 1.3rem;
 }
 
-.hero-copy,
 .muted {
-  color: var(--muted);
-}
-
-.hero-stats {
-  display: grid;
-  gap: 14px;
-}
-
-.hero-stats article {
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(104, 76, 45, 0.12);
-  border-radius: 22px;
-  padding: 18px 20px;
-}
-
-.hero-stats span {
-  display: block;
-  font-size: 1.9rem;
-  font-weight: 800;
-}
-
-.hero-stats small {
   color: var(--muted);
 }
 
@@ -360,7 +366,7 @@ button:hover {
 
 @media (max-width: 900px) {
   .topbar,
-  .hero,
+  .summary-grid,
   .grid {
     grid-template-columns: 1fr;
   }
@@ -376,7 +382,7 @@ button:hover {
     margin-top: 18px;
   }
 
-  .hero,
+  .summary-card,
   .auth-card,
   .form-card,
   .filters-card {
