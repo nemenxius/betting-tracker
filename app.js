@@ -291,6 +291,14 @@ function mapImportedRow(row) {
   };
 }
 
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 function calculateProfit(stake, odds, status, settlementReturn) {
   const numericStake = Number(stake);
   const numericOdds = Number(odds);
@@ -767,6 +775,8 @@ async function handleImportCsv() {
   }
 
   elements.importButton.disabled = true;
+  elements.importButton.textContent = "A importar...";
+  setImportMessage("A processar o ficheiro e a preparar a importação...");
 
   try {
     const text = await file.text();
@@ -785,10 +795,15 @@ async function handleImportCsv() {
       return;
     }
 
-    const { error } = await supabaseClient.from("bets").insert(payload);
-    if (error) {
-      setImportMessage(error.message, "warning");
-      return;
+    const chunks = chunkArray(payload, 200);
+
+    for (let index = 0; index < chunks.length; index += 1) {
+      setImportMessage(`A importar bloco ${index + 1} de ${chunks.length}...`);
+      const { error } = await supabaseClient.from("bets").insert(chunks[index]);
+      if (error) {
+        setImportMessage(`Erro no bloco ${index + 1}: ${error.message}`, "warning");
+        return;
+      }
     }
 
     const uniqueTipsters = [...new Set(payload.map((row) => row.tipster).filter(Boolean))];
@@ -809,6 +824,7 @@ async function handleImportCsv() {
     setImportMessage(error.message || "Ocorreu um erro durante a importação.", "warning");
   } finally {
     elements.importButton.disabled = false;
+    elements.importButton.textContent = "Importar apostas";
   }
 }
 
