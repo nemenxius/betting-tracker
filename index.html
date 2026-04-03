@@ -83,6 +83,20 @@
         </div>
 
         <form id="bet-form" class="stack">
+          <div class="inline-fields inline-fields-3">
+            <label>
+              <span>Tipster</span>
+              <input id="tipster" type="text" placeholder="JoaoTips">
+            </label>
+            <label>
+              <span>Bookie</span>
+              <input id="bookie" type="text" placeholder="Betano">
+            </label>
+            <label>
+              <span>Sport</span>
+              <input id="sport" type="text" placeholder="Futebol">
+            </label>
+          </div>
           <label>
             <span>Evento</span>
             <input id="event-name" type="text" placeholder="Benfica vs Porto" required>
@@ -93,12 +107,12 @@
           </label>
           <div class="inline-fields">
             <label>
-              <span>Casa de aposta</span>
-              <input id="bookmaker" type="text" placeholder="Betano">
-            </label>
-            <label>
               <span>Data</span>
               <input id="bet-date" type="date" required>
+            </label>
+            <label>
+              <span>Bet type</span>
+              <input id="bet-type" type="text" placeholder="Auto" readonly>
             </label>
           </div>
           <div class="inline-fields">
@@ -158,6 +172,38 @@
           <span>Pesquisar</span>
           <input id="filter-query" type="search" placeholder="Evento, mercado, casa...">
         </label>
+      </div>
+
+      <div class="inline-fields inline-fields-3">
+        <label>
+          <span>Tipster</span>
+          <input id="filter-tipster" type="search" placeholder="Todos">
+        </label>
+        <label>
+          <span>Bookie</span>
+          <input id="filter-bookie" type="search" placeholder="Todos">
+        </label>
+        <label>
+          <span>Sport</span>
+          <input id="filter-sport" type="search" placeholder="Todos">
+        </label>
+      </div>
+
+      <div class="inline-fields">
+        <label>
+          <span>Bet type</span>
+          <select id="filter-bet-type">
+            <option value="all">Todos</option>
+            <option value="Overs">Overs</option>
+            <option value="Unders">Unders</option>
+            <option value="BTTS NO">BTTS NO</option>
+            <option value="BTTS YES">BTTS YES</option>
+            <option value="Result">Result</option>
+            <option value="Handicap">Handicap</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+        <div></div>
       </div>
 
       <div id="message-box" class="notice hidden"></div>

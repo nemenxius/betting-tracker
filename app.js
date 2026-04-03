@@ -18,9 +18,12 @@ const elements = {
   userPanel: document.querySelector("#user-panel"),
   userEmail: document.querySelector("#user-email"),
   betForm: document.querySelector("#bet-form"),
+  tipster: document.querySelector("#tipster"),
+  bookie: document.querySelector("#bookie"),
+  sport: document.querySelector("#sport"),
   eventName: document.querySelector("#event-name"),
   marketName: document.querySelector("#market-name"),
-  bookmaker: document.querySelector("#bookmaker"),
+  betType: document.querySelector("#bet-type"),
   betDate: document.querySelector("#bet-date"),
   stake: document.querySelector("#stake"),
   odds: document.querySelector("#odds"),
@@ -32,6 +35,10 @@ const elements = {
   configWarning: document.querySelector("#config-warning"),
   filterStatus: document.querySelector("#filter-status"),
   filterQuery: document.querySelector("#filter-query"),
+  filterTipster: document.querySelector("#filter-tipster"),
+  filterBookie: document.querySelector("#filter-bookie"),
+  filterSport: document.querySelector("#filter-sport"),
+  filterBetType: document.querySelector("#filter-bet-type"),
   statTotal: document.querySelector("#stat-total"),
   statProfit: document.querySelector("#stat-profit"),
   statRoi: document.querySelector("#stat-roi")
@@ -110,6 +117,40 @@ function formatStatus(status) {
   return labels[status] || status;
 }
 
+function deriveBetType(marketName) {
+  const value = String(marketName || "").trim().toLowerCase();
+
+  if (!value) {
+    return "";
+  }
+
+  if (value.includes("over") || value.includes("mais") || value.includes("acima")) {
+    return "Overs";
+  }
+
+  if (value.includes("under") || value.includes("menos") || value.includes("abaixo")) {
+    return "Unders";
+  }
+
+  if (value.includes("btts no")) {
+    return "BTTS NO";
+  }
+
+  if (value.includes("btts yes")) {
+    return "BTTS YES";
+  }
+
+  if (value.includes("result")) {
+    return "Result";
+  }
+
+  if (value.includes("handicap")) {
+    return "Handicap";
+  }
+
+  return "Other";
+}
+
 function calculateProfit(stake, odds, status, profitInput) {
   if (profitInput !== "") {
     return Number(profitInput);
@@ -143,16 +184,25 @@ function updateStats() {
 function renderBets() {
   const query = elements.filterQuery.value.trim().toLowerCase();
   const filterStatus = elements.filterStatus.value;
+  const filterTipster = elements.filterTipster.value.trim().toLowerCase();
+  const filterBookie = elements.filterBookie.value.trim().toLowerCase();
+  const filterSport = elements.filterSport.value.trim().toLowerCase();
+  const filterBetType = elements.filterBetType.value;
 
   const visibleBets = bets.filter((bet) => {
     const matchesStatus = filterStatus === "all" || bet.status === filterStatus;
-    const haystack = [bet.event_name, bet.market_name, bet.bookmaker, bet.notes]
+    const matchesTipster = !filterTipster || String(bet.tipster || "").toLowerCase().includes(filterTipster);
+    const matchesBookie = !filterBookie || String(bet.bookie || "").toLowerCase().includes(filterBookie);
+    const matchesSport = !filterSport || String(bet.sport || "").toLowerCase().includes(filterSport);
+    const matchesBetType = filterBetType === "all" || bet.bet_type === filterBetType;
+    const haystack = [bet.event_name, bet.market_name, bet.notes]
+      .concat([bet.tipster, bet.bookie, bet.sport, bet.bet_type])
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
     const matchesQuery = !query || haystack.includes(query);
 
-    return matchesStatus && matchesQuery;
+    return matchesStatus && matchesQuery && matchesTipster && matchesBookie && matchesSport && matchesBetType;
   });
 
   updateStats();
@@ -186,7 +236,10 @@ function renderBets() {
           </div>
           <div class="bet-tags">
             <span>${formatDate(bet.bet_date)}</span>
-            <span>${escapeHtml(bet.bookmaker || "Sem casa")}</span>
+            <span>${escapeHtml(bet.tipster || "Sem tipster")}</span>
+            <span>${escapeHtml(bet.bookie || "Sem bookie")}</span>
+            <span>${escapeHtml(bet.sport || "Sem sport")}</span>
+            <span>${escapeHtml(bet.bet_type || "Other")}</span>
             <span>Stake: ${formatCurrency(bet.stake)}</span>
             <span>Odds: ${Number(bet.odds).toFixed(2)}</span>
             <span class="${profitClass}">Lucro: ${formatCurrency(bet.profit)}</span>
@@ -255,6 +308,11 @@ async function fetchBets() {
   }
 
   bets = data || [];
+  bets = bets.map((bet) => ({
+    ...bet,
+    bookie: bet.bookie || bet.bookmaker || null,
+    bet_type: bet.bet_type || deriveBetType(bet.market_name)
+  }));
   renderBets();
 }
 
@@ -304,9 +362,12 @@ async function handleBetSubmit(event) {
   const profit = calculateProfit(stake, odds, status, elements.profit.value);
 
   const payload = {
+    tipster: elements.tipster.value.trim() || null,
+    bookie: elements.bookie.value.trim() || null,
+    sport: elements.sport.value.trim() || null,
     event_name: elements.eventName.value.trim(),
     market_name: elements.marketName.value.trim(),
-    bookmaker: elements.bookmaker.value.trim() || null,
+    bet_type: deriveBetType(elements.marketName.value),
     bet_date: elements.betDate.value,
     stake,
     odds,
@@ -325,6 +386,7 @@ async function handleBetSubmit(event) {
   elements.betForm.reset();
   elements.betDate.value = defaultDate;
   elements.status.value = "pending";
+  elements.betType.value = "";
   setMessage("Aposta guardada com sucesso.");
   await fetchBets();
 }
@@ -360,7 +422,14 @@ async function init() {
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
 elements.betForm.addEventListener("submit", handleBetSubmit);
+elements.marketName.addEventListener("input", () => {
+  elements.betType.value = deriveBetType(elements.marketName.value);
+});
 elements.filterStatus.addEventListener("change", renderBets);
 elements.filterQuery.addEventListener("input", renderBets);
+elements.filterTipster.addEventListener("input", renderBets);
+elements.filterBookie.addEventListener("input", renderBets);
+elements.filterSport.addEventListener("input", renderBets);
+elements.filterBetType.addEventListener("change", renderBets);
 
 init();

@@ -205,6 +205,10 @@ button:hover {
   gap: 14px;
 }
 
+.inline-fields-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .notice {
   border-radius: 18px;
   padding: 14px 16px;
@@ -336,7 +340,8 @@ button:hover {
   }
 
   .actions,
-  .inline-fields {
+  .inline-fields,
+  .inline-fields-3 {
     grid-template-columns: 1fr;
   }
 }

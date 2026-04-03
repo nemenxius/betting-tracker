@@ -6,8 +6,9 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 ## O que inclui
 
 - Login com email/password via Supabase Auth
-- Registo de apostas com evento, mercado, stake, odds, resultado, lucro e notas
-- Filtros por estado e pesquisa
+- Registo de apostas com tipster, bookie, sport, evento, mercado, bet type, stake, odds, resultado, lucro e notas
+- Bet type calculado automaticamente a partir do mercado
+- Filtros por estado, tipster, bookie, sport, bet type e pesquisa
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI
 - SQL pronto para criar a tabela e as políticas RLS
 
