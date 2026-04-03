@@ -3,11 +3,11 @@ const { createClient } = window.supabase;
 const config = window.APP_CONFIG || {};
 const hasValidConfig =
   typeof config.supabaseUrl === "string" &&
-  typeof config.supabaseAnonKey === "string" &&
+  typeof (config.supabasePublishableKey || config.supabaseAnonKey) === "string" &&
   config.supabaseUrl.startsWith("https://") &&
   !config.supabaseUrl.includes("YOUR_PROJECT_ID") &&
-  !config.supabaseAnonKey.includes("YOUR_SUPABASE_ANON_KEY") &&
-  config.supabaseAnonKey.trim().length > 20;
+  !(config.supabasePublishableKey || config.supabaseAnonKey).includes("YOUR_SUPABASE") &&
+  (config.supabasePublishableKey || config.supabaseAnonKey).trim().length > 20;
 
 const elements = {
   authForm: document.querySelector("#auth-form"),
@@ -99,7 +99,7 @@ const PAGE_SIZE = 12;
 let pendingOcrPrefill = null;
 
 if (hasValidConfig) {
-  supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
+  supabaseClient = createClient(config.supabaseUrl, config.supabasePublishableKey || config.supabaseAnonKey);
 } else {
   elements.configWarning.classList.remove("hidden");
   setMessage("Preenche o ficheiro config.js antes de usar a app.", "warning");

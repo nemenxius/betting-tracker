@@ -37,7 +37,7 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 3. Em `Authentication > Providers`, mantém `Email` ativo.
 4. Em `Project Settings > API`, copia:
    - `Project URL`
-   - `anon public key`
+   - `publishable key`
 5. Substitui os placeholders em `config.js`.
 
 ## Publicar
