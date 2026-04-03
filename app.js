@@ -127,6 +127,15 @@ function clearMessage() {
   clearNotice(elements.messageBox);
 }
 
+function showTransientMessage(message, tone = "info", durationMs = 4000) {
+  setMessage(message, tone);
+  window.setTimeout(() => {
+    if (elements.messageBox.textContent === message) {
+      clearMessage();
+    }
+  }, durationMs);
+}
+
 function setAuthMessage(message, tone = "info") {
   setNotice(elements.authMessageBox, message, tone);
 }
@@ -263,6 +272,7 @@ function normalizeOcrText(text) {
     .replace(/\r/g, "\n")
     .split("\n")
     .map((line) => line.replace(/\s+/g, " ").trim())
+    .map((line) => line.replace(/^[•.\-: ]+/, "").trim())
     .filter(Boolean);
 }
 
@@ -282,20 +292,31 @@ function extractDatesFromLines(lines) {
 }
 
 function detectEventFromLines(lines) {
-  const versusLine = lines.find((line) => /\b(vs| - )\b/i.test(line) && !/single|pending|pick|result|total:/i.test(line));
+  const cleanLines = lines.map((line) =>
+    line
+      .replace(/^\d+:\d+\s*/, "")
+      .replace(/\b\d+:\d+\b/g, "")
+      .replace(/\(\d+[-:]\d+\)/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+
+  const versusLine = cleanLines.find((line) => /\b(vs| - )\b/i.test(line) && !/single|pending|pick|result|total:|bet_id|liga|league|\d{2}[./]\d{2}[./]\d{4}/i.test(line));
   if (versusLine) {
     return versusLine.replace(/\s+/g, " ").trim();
   }
 
-  for (let index = 0; index < lines.length - 1; index += 1) {
-    const first = lines[index];
-    const second = lines[index + 1];
-    const looksLikeMeta = /single|pending|pick|result|total:|odds|stake|bet_id|liga|league|\d{2}[./]\d{2}[./]\d{4}/i;
+  for (let index = 0; index < cleanLines.length - 1; index += 1) {
+    const first = cleanLines[index];
+    const second = cleanLines[index + 1];
+    const looksLikeMeta = /single|pending|pick|result|total:?|odds|stake|bet_id|liga|league|mexico|football|soccer|€|\d{2}[./]\d{2}[./]\d{4}|\b\d+[.,]\d{2}\b/i;
     if (
-      first.length > 3 &&
+      first.length > 5 &&
       second.length > 3 &&
       !looksLikeMeta.test(first) &&
-      !looksLikeMeta.test(second)
+      !looksLikeMeta.test(second) &&
+      !/\b(total|under|over|btts|handicap|result)\b/i.test(first) &&
+      !/\b(total|under|over|btts|handicap|result)\b/i.test(second)
     ) {
       return `${first} - ${second}`;
     }
@@ -313,13 +334,16 @@ function detectMarketFromLines(lines) {
         return rest;
       }
 
-      if (lines[index + 1]) {
-        return lines[index + 1];
+      for (let offset = 1; offset <= 2; offset += 1) {
+        const nextLine = lines[index + offset];
+        if (nextLine && !/^(pick|result)$/i.test(nextLine)) {
+          return nextLine;
+        }
       }
     }
   }
 
-  const directMatch = lines.find((line) => /(btts|under|over|handicap|mais|menos|acima|abaixo|result)/i.test(line));
+  const directMatch = lines.find((line) => /(btts(\s+yes|\s+no)?|under|over|handicap|mais|menos|acima|abaixo)/i.test(line) && !/pick|result/i.test(line));
   return directMatch || "";
 }
 
@@ -391,6 +415,7 @@ function extractBetFromOcrText(text) {
 
 function applyOcrPrefill(prefill) {
   openEntryModal();
+  clearMessage();
   elements.eventName.value = prefill.eventName || "";
   elements.marketName.value = prefill.marketName || "";
   elements.betType.value = deriveBetType(prefill.marketName || "");
@@ -1157,7 +1182,7 @@ async function handleOcrImport() {
 
     applyOcrPrefill(extracted);
     closeOcrModal();
-    setMessage("Campos pré-preenchidos por OCR. Revê e guarda a aposta.");
+    showTransientMessage("Campos pré-preenchidos por OCR. Revê e guarda a aposta.");
   } catch (error) {
     setOcrMessage(error.message || "Ocorreu um erro ao analisar a imagem.", "warning");
   } finally {
