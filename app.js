@@ -17,6 +17,9 @@ const elements = {
   authMessageBox: document.querySelector("#auth-message-box"),
   userPanel: document.querySelector("#user-panel"),
   userEmail: document.querySelector("#user-email"),
+  importMessageBox: document.querySelector("#import-message-box"),
+  importFile: document.querySelector("#import-file"),
+  importButton: document.querySelector("#import-button"),
   betForm: document.querySelector("#bet-form"),
   editingBanner: document.querySelector("#editing-banner"),
   cancelEditButton: document.querySelector("#cancel-edit-button"),
@@ -120,6 +123,14 @@ function clearAuthMessage() {
   clearNotice(elements.authMessageBox);
 }
 
+function setImportMessage(message, tone = "info") {
+  setNotice(elements.importMessageBox, message, tone);
+}
+
+function clearImportMessage() {
+  clearNotice(elements.importMessageBox);
+}
+
 function formatUnits(value) {
   return `${Number(value || 0).toFixed(2)}u`;
 }
@@ -171,6 +182,113 @@ function deriveBetType(marketName) {
   }
 
   return "Other";
+}
+
+function normalizeImportedStatus(rawStatus) {
+  const value = String(rawStatus || "").trim().toUpperCase();
+
+  if (value === "W") {
+    return "won";
+  }
+
+  if (value === "L") {
+    return "lost";
+  }
+
+  if (value === "R") {
+    return "void";
+  }
+
+  if (value === "TBD" || value === "") {
+    return "pending";
+  }
+
+  return "pending";
+}
+
+function parsePtDateToIso(rawDate) {
+  const value = String(rawDate || "").trim();
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) {
+    return "";
+  }
+
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const nextChar = line[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current);
+  return values.map((value) => value.trim());
+}
+
+function parseCsv(text) {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n").filter((line) => line.trim() !== "");
+  if (!lines.length) {
+    return [];
+  }
+
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce((record, header, index) => {
+      record[header] = values[index] || "";
+      return record;
+    }, {});
+  });
+}
+
+function mapImportedRow(row) {
+  const marketName = row.Bet || "";
+  const status = normalizeImportedStatus(row.Result);
+  const stake = Number(row.Stake || 0);
+  const odds = Number(row.Odds || 0);
+  const payout = row.Payout === "" ? null : Number(row.Payout);
+  const profit = row["P/L"] === "" ? calculateProfit(stake, odds, status, payout) : Number(row["P/L"]);
+
+  return {
+    tipster: row.Tipster || null,
+    bookie: row.Bookie || null,
+    sport: row.Sport || null,
+    event_name: row.Match || "Sem evento",
+    market_name: marketName,
+    bet_type: row.Type || deriveBetType(marketName),
+    bet_date: parsePtDateToIso(row.Date),
+    stake,
+    odds,
+    status,
+    settlement_return: status === "cashout" || status === "partial_void" ? payout : null,
+    profit,
+    notes: null
+  };
 }
 
 function calculateProfit(stake, odds, status, settlementReturn) {
@@ -634,6 +752,66 @@ async function handleBetListClick(event) {
   }
 }
 
+async function handleImportCsv() {
+  clearImportMessage();
+
+  if (!currentUser) {
+    setImportMessage("Inicia sessão antes de importar apostas.", "warning");
+    return;
+  }
+
+  const file = elements.importFile.files[0];
+  if (!file) {
+    setImportMessage("Seleciona um ficheiro CSV primeiro.", "warning");
+    return;
+  }
+
+  elements.importButton.disabled = true;
+
+  try {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (!rows.length) {
+      setImportMessage("O ficheiro está vazio ou não foi possível ler linhas válidas.", "warning");
+      return;
+    }
+
+    const payload = rows
+      .map(mapImportedRow)
+      .filter((row) => row.bet_date && row.market_name && row.event_name);
+
+    if (!payload.length) {
+      setImportMessage("Não encontrei linhas importáveis após o mapeamento.", "warning");
+      return;
+    }
+
+    const { error } = await supabaseClient.from("bets").insert(payload);
+    if (error) {
+      setImportMessage(error.message, "warning");
+      return;
+    }
+
+    const uniqueTipsters = [...new Set(payload.map((row) => row.tipster).filter(Boolean))];
+    const uniqueBookies = [...new Set(payload.map((row) => row.bookie).filter(Boolean))];
+    const uniqueSports = [...new Set(payload.map((row) => row.sport).filter(Boolean))];
+
+    await Promise.all([
+      ...uniqueTipsters.map((value) => syncSuggestion("tipsters", value)),
+      ...uniqueBookies.map((value) => syncSuggestion("bookies", value)),
+      ...uniqueSports.map((value) => syncSuggestion("sports", value))
+    ]);
+
+    elements.importFile.value = "";
+    setImportMessage(`Importação concluída: ${payload.length} apostas carregadas.`);
+    await fetchSuggestions();
+    await fetchBets();
+  } catch (error) {
+    setImportMessage(error.message || "Ocorreu um erro durante a importação.", "warning");
+  } finally {
+    elements.importButton.disabled = false;
+  }
+}
+
 async function init() {
   if (!supabaseClient) {
     return;
@@ -666,6 +844,7 @@ async function init() {
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
+elements.importButton.addEventListener("click", handleImportCsv);
 elements.betForm.addEventListener("submit", handleBetSubmit);
 elements.cancelEditButton.addEventListener("click", resetBetForm);
 elements.betsList.addEventListener("click", handleBetListClick);

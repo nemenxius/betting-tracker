@@ -16,6 +16,7 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 - Edição e remoção de apostas no histórico
 - Layout compacto com dark mode
 - Paginação no histórico
+- Importação de apostas a partir de ficheiro CSV
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI
 - SQL pronto para criar a tabela e as políticas RLS
 
