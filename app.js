@@ -454,11 +454,29 @@ function detectStatusFromLines(lines) {
 function extractBetFromOcrText(text) {
   const lines = normalizeOcrText(text);
   const dates = extractDatesFromLines(lines);
-  const market = detectMarketFromLines(lines);
-  const eventName = detectEventFromLines(lines);
+  let market = detectMarketFromLines(lines);
+  let eventName = detectEventFromLines(lines);
   const odds = detectOddsFromLines(lines);
   const status = detectStatusFromLines(lines);
   const hasLikelyGameDate = dates.length >= 2;
+
+  // Explicit fallback for the bookmaker layout seen in exemplo1.
+  const totalLineIndex = lines.findIndex((line) => /total:/i.test(line));
+  if (totalLineIndex >= 0 && totalLineIndex + 1 < lines.length) {
+    const homeLine = stripScorePrefix(lines[totalLineIndex]);
+    const awayLine = stripScorePrefix(lines[totalLineIndex + 1]);
+    const homeTeam = homeLine.replace(/total:.*/i, "").trim();
+    const extractedMarket = extractMarketSegment(awayLine);
+    const awayTeam = awayLine.replace(extractedMarket, "").trim();
+
+    if (!eventName && homeTeam && awayTeam) {
+      eventName = `${homeTeam} - ${awayTeam}`;
+    }
+
+    if (!market && extractedMarket) {
+      market = extractedMarket;
+    }
+  }
 
   return {
     eventName,
