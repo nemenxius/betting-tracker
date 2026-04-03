@@ -74,8 +74,11 @@ const elements = {
   statRoi: document.querySelector("#stat-roi"),
   statAverageOdds: document.querySelector("#stat-average-odds"),
   statTotalStake: document.querySelector("#stat-total-stake"),
-  statStatusBreakdown: document.querySelector("#stat-status-breakdown"),
-  statStatusDetail: document.querySelector("#stat-status-detail")
+  statWon: document.querySelector("#stat-won"),
+  statLost: document.querySelector("#stat-lost"),
+  statVoid: document.querySelector("#stat-void"),
+  statCashout: document.querySelector("#stat-cashout"),
+  statPending: document.querySelector("#stat-pending")
 };
 
 const defaultDate = new Date().toISOString().split("T")[0];
@@ -723,8 +726,11 @@ function updateStats(sourceBets) {
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
   elements.statAverageOdds.textContent = averageOdds.toFixed(2);
   elements.statTotalStake.textContent = formatUnits(totalStake);
-  elements.statStatusBreakdown.textContent = `${wins}W / ${losses}L`;
-  elements.statStatusDetail.textContent = `${voids}V / ${cashouts}C / ${pending}P`;
+  elements.statWon.textContent = String(wins);
+  elements.statLost.textContent = String(losses);
+  elements.statVoid.textContent = String(voids);
+  elements.statCashout.textContent = String(cashouts);
+  elements.statPending.textContent = String(pending);
 }
 
 function updatePagination(totalItems) {
