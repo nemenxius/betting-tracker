@@ -23,6 +23,7 @@ const elements = {
   ocrMessageBox: document.querySelector("#ocr-message-box"),
   ocrDebugText: document.querySelector("#ocr-debug-text"),
   ocrFile: document.querySelector("#ocr-file"),
+  applyOcrButton: document.querySelector("#apply-ocr-button"),
   ocrButton: document.querySelector("#ocr-button"),
   openImportButton: document.querySelector("#open-import-button"),
   closeImportButton: document.querySelector("#close-import-button"),
@@ -88,6 +89,7 @@ let authSubscription = null;
 let editingBetId = null;
 let currentPage = 1;
 const PAGE_SIZE = 12;
+let pendingOcrPrefill = null;
 
 if (hasValidConfig) {
   supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
@@ -194,6 +196,7 @@ function closeOcrModal() {
   elements.ocrModal.classList.add("hidden");
   elements.ocrFile.value = "";
   elements.ocrDebugText.textContent = "";
+  pendingOcrPrefill = null;
   clearOcrMessage();
   if (elements.entryModal.classList.contains("hidden") && elements.importModal.classList.contains("hidden")) {
     document.body.style.overflow = "";
@@ -451,6 +454,17 @@ function applyOcrPrefill(prefill) {
   elements.betDate.value = prefill.betDate || "";
   elements.notes.value = prefill.notes || "";
   updateSettlementVisibility();
+}
+
+function handleApplyOcrPrefill() {
+  if (!pendingOcrPrefill) {
+    setOcrMessage("Analisa uma imagem primeiro.", "warning");
+    return;
+  }
+
+  applyOcrPrefill(pendingOcrPrefill);
+  closeOcrModal();
+  showTransientMessage("Campos pré-preenchidos por OCR. Revê e guarda a aposta.");
 }
 
 function normalizeImportedStatus(rawStatus) {
@@ -1193,6 +1207,7 @@ async function handleOcrImport() {
   }
 
   elements.ocrButton.disabled = true;
+  elements.applyOcrButton.disabled = true;
   elements.ocrButton.textContent = "A analisar...";
   setOcrMessage("A ler texto da imagem...");
 
@@ -1208,9 +1223,9 @@ async function handleOcrImport() {
       return;
     }
 
-    applyOcrPrefill(extracted);
-    closeOcrModal();
-    showTransientMessage("Campos pré-preenchidos por OCR. Revê e guarda a aposta.");
+    pendingOcrPrefill = extracted;
+    elements.applyOcrButton.disabled = false;
+    setOcrMessage("Análise concluída. Revê o debug e clica em 'Usar pre-preenchimento'.");
   } catch (error) {
     setOcrMessage(error.message || "Ocorreu um erro ao analisar a imagem.", "warning");
   } finally {
@@ -1255,6 +1270,7 @@ elements.openEntryButton.addEventListener("click", openEntryModal);
 elements.closeEntryButton.addEventListener("click", closeEntryModal);
 elements.openOcrButton.addEventListener("click", openOcrModal);
 elements.closeOcrButton.addEventListener("click", closeOcrModal);
+elements.applyOcrButton.addEventListener("click", handleApplyOcrPrefill);
 elements.ocrButton.addEventListener("click", handleOcrImport);
 elements.openImportButton.addEventListener("click", openImportModal);
 elements.closeImportButton.addEventListener("click", closeImportModal);
