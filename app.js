@@ -21,6 +21,7 @@ const elements = {
   closeOcrButton: document.querySelector("#close-ocr-button"),
   ocrModal: document.querySelector("#ocr-modal"),
   ocrMessageBox: document.querySelector("#ocr-message-box"),
+  ocrDebugText: document.querySelector("#ocr-debug-text"),
   ocrFile: document.querySelector("#ocr-file"),
   ocrButton: document.querySelector("#ocr-button"),
   openImportButton: document.querySelector("#open-import-button"),
@@ -192,6 +193,7 @@ function openOcrModal() {
 function closeOcrModal() {
   elements.ocrModal.classList.add("hidden");
   elements.ocrFile.value = "";
+  elements.ocrDebugText.textContent = "";
   clearOcrMessage();
   if (elements.entryModal.classList.contains("hidden") && elements.importModal.classList.contains("hidden")) {
     document.body.style.overflow = "";
@@ -276,6 +278,35 @@ function normalizeOcrText(text) {
     .filter(Boolean);
 }
 
+function stripScorePrefix(line) {
+  return line
+    .replace(/^\d+[:.]\d+\s*/, "")
+    .replace(/\(\d+[-:]\d+\)\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMarketSegment(line) {
+  const cleaned = stripScorePrefix(line);
+  const patterns = [
+    /btts\s+(yes|no)/i,
+    /under\s*\d+[.,]?\d*/i,
+    /over\s*\d+[.,]?\d*/i,
+    /mais\s*de?\s*\d+[.,]?\d*/i,
+    /menos\s*de?\s*\d+[.,]?\d*/i,
+    /handicap.+/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = cleaned.match(pattern);
+    if (match) {
+      return match[0].replace(/\b25\b/g, "2.5").replace(/\s+/g, " ").trim();
+    }
+  }
+
+  return "";
+}
+
 function extractDatesFromLines(lines) {
   const dates = [];
   const regex = /\b(\d{2})[./](\d{2})[./](\d{4})\b/g;
@@ -292,14 +323,7 @@ function extractDatesFromLines(lines) {
 }
 
 function detectEventFromLines(lines) {
-  const cleanLines = lines.map((line) =>
-    line
-      .replace(/^\d+:\d+\s*/, "")
-      .replace(/\b\d+:\d+\b/g, "")
-      .replace(/\(\d+[-:]\d+\)/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-  );
+  const cleanLines = lines.map((line) => stripScorePrefix(line));
 
   const versusLine = cleanLines.find((line) => /\b(vs| - )\b/i.test(line) && !/single|pending|pick|result|total:|bet_id|liga|league|\d{2}[./]\d{2}[./]\d{4}/i.test(line));
   if (versusLine) {
@@ -308,7 +332,8 @@ function detectEventFromLines(lines) {
 
   for (let index = 0; index < cleanLines.length - 1; index += 1) {
     const first = cleanLines[index];
-    const second = cleanLines[index + 1];
+    const secondRaw = cleanLines[index + 1];
+    const second = secondRaw.replace(extractMarketSegment(secondRaw), "").replace(/^&\s*/, "").trim();
     const looksLikeMeta = /single|pending|pick|result|total:?|odds|stake|bet_id|liga|league|mexico|football|soccer|€|\d{2}[./]\d{2}[./]\d{4}|\b\d+[.,]\d{2}\b/i;
     if (
       first.length > 5 &&
@@ -343,7 +368,9 @@ function detectMarketFromLines(lines) {
     }
   }
 
-  const directMatch = lines.find((line) => /(btts(\s+yes|\s+no)?|under|over|handicap|mais|menos|acima|abaixo)/i.test(line) && !/pick|result/i.test(line));
+  const directMatch = lines
+    .map((line) => extractMarketSegment(line))
+    .find(Boolean);
   return directMatch || "";
 }
 
@@ -1173,6 +1200,7 @@ async function handleOcrImport() {
     const worker = await window.Tesseract.createWorker("eng");
     const result = await worker.recognize(file);
     await worker.terminate();
+    elements.ocrDebugText.textContent = result.data.text || "";
 
     const extracted = extractBetFromOcrText(result.data.text || "");
     if (!extracted.marketName && !extracted.eventName) {

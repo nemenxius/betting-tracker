@@ -184,6 +184,27 @@ h2 {
   padding: 16px;
 }
 
+.ocr-debug {
+  border: 1px solid rgba(147, 161, 181, 0.16);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ocr-debug summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.ocr-debug pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+  margin: 10px 0 0;
+  font-family: Consolas, monospace;
+  font-size: 0.8rem;
+}
+
 .section-heading {
   display: flex;
   align-items: start;
