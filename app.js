@@ -34,7 +34,6 @@ const elements = {
   stake: document.querySelector("#stake"),
   odds: document.querySelector("#odds"),
   status: document.querySelector("#status"),
-  profit: document.querySelector("#profit"),
   notes: document.querySelector("#notes"),
   betsList: document.querySelector("#bets-list"),
   pagination: document.querySelector("#pagination"),
@@ -168,11 +167,7 @@ function deriveBetType(marketName) {
   return "Other";
 }
 
-function calculateProfit(stake, odds, status, profitInput) {
-  if (profitInput !== "") {
-    return Number(profitInput);
-  }
-
+function calculateProfit(stake, odds, status) {
   const numericStake = Number(stake);
   const numericOdds = Number(odds);
 
@@ -256,7 +251,6 @@ function startEditingBet(betId) {
   elements.stake.value = bet.stake ?? "";
   elements.odds.value = bet.odds ?? "";
   elements.status.value = bet.status || "pending";
-  elements.profit.value = bet.profit ?? "";
   elements.notes.value = bet.notes || "";
   elements.editingBanner.classList.remove("hidden");
   elements.saveBetButton.textContent = "Atualizar aposta";
@@ -351,7 +345,7 @@ function renderBets() {
             <span>${escapeHtml(bet.bet_type || "Other")}</span>
             <span>Stake: ${formatUnits(bet.stake)}</span>
             <span>Odds: ${Number(bet.odds).toFixed(2)}</span>
-            <span class="${profitClass}">Lucro: ${formatUnits(bet.profit)}</span>
+            <span class="${profitClass}">Lucro: ${bet.status === "pending" ? "-" : formatUnits(bet.profit)}</span>
           </div>
           ${notes}
           <div class="bet-item-actions">
@@ -522,7 +516,7 @@ async function handleBetSubmit(event) {
   const status = elements.status.value;
   const stake = Number(elements.stake.value);
   const odds = Number(elements.odds.value);
-  const profit = calculateProfit(stake, odds, status, elements.profit.value);
+  const profit = calculateProfit(stake, odds, status);
 
   const payload = {
     tipster: elements.tipster.value.trim() || null,
