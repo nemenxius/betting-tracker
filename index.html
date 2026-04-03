@@ -33,6 +33,7 @@
 
       <div id="user-panel" class="user-panel hidden topbar-user">
         <p>Ligado como <strong id="user-email"></strong></p>
+        <button id="open-import-button" class="ghost-button" type="button">Importar</button>
         <button id="logout-button" class="ghost-button" type="button">Sair</button>
       </div>
     </section>
@@ -142,25 +143,6 @@
     <section class="card filters-card">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Importação</p>
-          <h2>Importar CSV</h2>
-        </div>
-      </div>
-      <div id="import-message-box" class="notice hidden"></div>
-      <div class="inline-fields">
-        <label>
-          <span>Ficheiro CSV</span>
-          <input id="import-file" type="file" accept=".csv,text/csv">
-        </label>
-        <div class="import-actions">
-          <button id="import-button" type="button">Importar apostas</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card filters-card">
-      <div class="section-heading">
-        <div>
           <p class="eyebrow">Histórico</p>
           <h2>As tuas apostas</h2>
         </div>
@@ -244,6 +226,28 @@
       </div>
     </section>
   </main>
+
+  <div id="import-modal" class="modal-overlay hidden">
+    <div class="modal-card card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Importação</p>
+          <h2>Importar CSV</h2>
+        </div>
+        <button id="close-import-button" class="ghost-button" type="button">Fechar</button>
+      </div>
+      <div id="import-message-box" class="notice hidden"></div>
+      <div class="stack">
+        <label>
+          <span>Ficheiro CSV</span>
+          <input id="import-file" type="file" accept=".csv,text/csv">
+        </label>
+        <div class="import-actions">
+          <button id="import-button" type="button">Importar apostas</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <datalist id="tipster-options"></datalist>
   <datalist id="bookie-options"></datalist>

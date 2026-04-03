@@ -14,6 +14,9 @@ const elements = {
   email: document.querySelector("#auth-email"),
   password: document.querySelector("#auth-password"),
   logoutButton: document.querySelector("#logout-button"),
+  openImportButton: document.querySelector("#open-import-button"),
+  closeImportButton: document.querySelector("#close-import-button"),
+  importModal: document.querySelector("#import-modal"),
   authMessageBox: document.querySelector("#auth-message-box"),
   userPanel: document.querySelector("#user-panel"),
   userEmail: document.querySelector("#user-email"),
@@ -129,6 +132,21 @@ function setImportMessage(message, tone = "info") {
 
 function clearImportMessage() {
   clearNotice(elements.importMessageBox);
+}
+
+function openImportModal() {
+  if (!currentUser) {
+    return;
+  }
+
+  clearImportMessage();
+  elements.importModal.classList.remove("hidden");
+}
+
+function closeImportModal() {
+  elements.importModal.classList.add("hidden");
+  elements.importFile.value = "";
+  clearImportMessage();
 }
 
 function formatUnits(value) {
@@ -552,6 +570,7 @@ function setAuthUi(user) {
   } else {
     resetBetForm();
     currentPage = 1;
+    closeImportModal();
   }
 
   elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
@@ -820,6 +839,7 @@ async function handleImportCsv() {
     setImportMessage(`Importação concluída: ${payload.length} apostas carregadas.`);
     await fetchSuggestions();
     await fetchBets();
+    closeImportModal();
   } catch (error) {
     setImportMessage(error.message || "Ocorreu um erro durante a importação.", "warning");
   } finally {
@@ -860,6 +880,8 @@ async function init() {
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
+elements.openImportButton.addEventListener("click", openImportModal);
+elements.closeImportButton.addEventListener("click", closeImportModal);
 elements.importButton.addEventListener("click", handleImportCsv);
 elements.betForm.addEventListener("submit", handleBetSubmit);
 elements.cancelEditButton.addEventListener("click", resetBetForm);
