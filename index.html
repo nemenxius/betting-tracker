@@ -13,6 +13,30 @@
 <body>
   <div class="background-glow"></div>
   <main class="app-shell">
+    <section class="topbar card">
+      <div class="topbar-copy">
+        <p class="eyebrow">Sessão</p>
+        <h2>Acesso rápido</h2>
+      </div>
+
+      <div id="config-warning" class="notice warning hidden topbar-notice">
+        Preenche o ficheiro <code>config.js</code> com a URL e chave anónima da tua Supabase.
+      </div>
+
+      <div id="auth-message-box" class="notice hidden topbar-notice"></div>
+
+      <form id="auth-form" class="auth-inline-form">
+        <input id="auth-email" type="email" placeholder="Email" required>
+        <input id="auth-password" type="password" placeholder="Password" required minlength="6">
+        <button id="login-button" type="submit">Entrar</button>
+      </form>
+
+      <div id="user-panel" class="user-panel hidden topbar-user">
+        <p>Ligado como <strong id="user-email"></strong></p>
+        <button id="logout-button" class="ghost-button" type="button">Sair</button>
+      </div>
+    </section>
+
     <section class="hero card">
       <div>
         <p class="eyebrow">Apostas pessoais</p>
@@ -39,42 +63,7 @@
     </section>
 
     <section class="grid">
-      <div class="card auth-card">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Conta</p>
-            <h2>Acesso</h2>
-          </div>
-          <button id="logout-button" class="ghost-button hidden" type="button">Sair</button>
-        </div>
-
-        <div id="config-warning" class="notice warning hidden">
-          Preenche o ficheiro <code>config.js</code> com a URL e chave anónima da tua Supabase.
-        </div>
-
-        <div id="auth-message-box" class="notice hidden"></div>
-
-        <form id="auth-form" class="stack">
-          <label>
-            <span>Email</span>
-            <input id="auth-email" type="email" placeholder="tu@exemplo.com" required>
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="auth-password" type="password" placeholder="Min. 6 caracteres" required minlength="6">
-          </label>
-          <div class="actions">
-            <button id="login-button" type="submit">Entrar</button>
-          </div>
-        </form>
-
-        <div id="user-panel" class="user-panel hidden">
-          <p>Sessão iniciada com <strong id="user-email"></strong></p>
-          <p class="muted">Os teus registos ficam associados à tua conta.</p>
-        </div>
-      </div>
-
-      <div class="card form-card">
+      <div class="card form-card form-card-wide">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Nova entrada</p>
@@ -86,15 +75,15 @@
           <div class="inline-fields inline-fields-3">
             <label>
               <span>Tipster</span>
-              <input id="tipster" type="text" placeholder="JoaoTips">
+              <input id="tipster" type="text" placeholder="JoaoTips" list="tipster-options">
             </label>
             <label>
               <span>Bookie</span>
-              <input id="bookie" type="text" placeholder="Betano">
+              <input id="bookie" type="text" placeholder="Betano" list="bookie-options">
             </label>
             <label>
               <span>Sport</span>
-              <input id="sport" type="text" placeholder="Futebol">
+              <input id="sport" type="text" placeholder="Futebol" list="sport-options">
             </label>
           </div>
           <label>
@@ -177,15 +166,15 @@
       <div class="inline-fields inline-fields-3">
         <label>
           <span>Tipster</span>
-          <input id="filter-tipster" type="search" placeholder="Todos">
+          <input id="filter-tipster" type="search" placeholder="Todos" list="tipster-options">
         </label>
         <label>
           <span>Bookie</span>
-          <input id="filter-bookie" type="search" placeholder="Todos">
+          <input id="filter-bookie" type="search" placeholder="Todos" list="bookie-options">
         </label>
         <label>
           <span>Sport</span>
-          <input id="filter-sport" type="search" placeholder="Todos">
+          <input id="filter-sport" type="search" placeholder="Todos" list="sport-options">
         </label>
       </div>
 
@@ -212,6 +201,10 @@
       </div>
     </section>
   </main>
+
+  <datalist id="tipster-options"></datalist>
+  <datalist id="bookie-options"></datalist>
+  <datalist id="sport-options"></datalist>
 
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

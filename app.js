@@ -21,6 +21,9 @@ const elements = {
   tipster: document.querySelector("#tipster"),
   bookie: document.querySelector("#bookie"),
   sport: document.querySelector("#sport"),
+  tipsterOptions: document.querySelector("#tipster-options"),
+  bookieOptions: document.querySelector("#bookie-options"),
+  sportOptions: document.querySelector("#sport-options"),
   eventName: document.querySelector("#event-name"),
   marketName: document.querySelector("#market-name"),
   betType: document.querySelector("#bet-type"),
@@ -170,6 +173,21 @@ function calculateProfit(stake, odds, status, profitInput) {
   return 0;
 }
 
+function renderDataList(target, values) {
+  const uniqueValues = [...new Set(values.filter(Boolean).map((value) => String(value).trim()))]
+    .sort((left, right) => left.localeCompare(right, "pt-PT"));
+
+  target.innerHTML = uniqueValues
+    .map((value) => `<option value="${escapeHtml(value)}"></option>`)
+    .join("");
+}
+
+function updateAutocompleteOptions() {
+  renderDataList(elements.tipsterOptions, bets.map((bet) => bet.tipster));
+  renderDataList(elements.bookieOptions, bets.map((bet) => bet.bookie));
+  renderDataList(elements.sportOptions, bets.map((bet) => bet.sport));
+}
+
 function updateStats() {
   const resolvedBets = bets.filter((bet) => bet.status !== "pending");
   const totalProfit = bets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
@@ -313,6 +331,7 @@ async function fetchBets() {
     bookie: bet.bookie || bet.bookmaker || null,
     bet_type: bet.bet_type || deriveBetType(bet.market_name)
   }));
+  updateAutocompleteOptions();
   renderBets();
 }
 

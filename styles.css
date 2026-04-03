@@ -52,6 +52,42 @@ body {
   backdrop-filter: blur(18px);
 }
 
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+}
+
+.topbar-copy h2,
+.topbar-copy p {
+  margin-bottom: 0;
+}
+
+.topbar-notice {
+  margin-bottom: 0;
+}
+
+.auth-inline-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(140px, 180px) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.topbar-user p {
+  margin-bottom: 0;
+}
+
 .hero {
   display: grid;
   gap: 24px;
@@ -115,7 +151,7 @@ h2 {
 
 .grid {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   margin-bottom: 20px;
 }
@@ -124,6 +160,10 @@ h2 {
 .form-card,
 .filters-card {
   padding: 24px;
+}
+
+.form-card-wide {
+  width: 100%;
 }
 
 .section-heading {
@@ -319,8 +359,13 @@ button:hover {
 }
 
 @media (max-width: 900px) {
+  .topbar,
   .hero,
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-inline-form {
     grid-template-columns: 1fr;
   }
 }

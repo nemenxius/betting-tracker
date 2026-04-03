@@ -8,6 +8,7 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 - Login com email/password via Supabase Auth
 - Registo de apostas com tipster, bookie, sport, evento, mercado, bet type, stake, odds, resultado, lucro e notas
 - Bet type calculado automaticamente a partir do mercado
+- Campos de tipster, bookie e sport com sugestões automáticas enquanto escreves
 - Filtros por estado, tipster, bookie, sport, bet type e pesquisa
 - Estatísticas rápidas: total de apostas, lucro líquido e ROI
 - SQL pronto para criar a tabela e as políticas RLS
