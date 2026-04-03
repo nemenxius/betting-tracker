@@ -368,10 +368,16 @@ button:hover {
   display: flex;
   gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
 }
 
 .bet-item-actions button {
   padding: 8px 12px;
+}
+
+.status-select {
+  width: auto;
+  min-width: 140px;
 }
 
 .pagination {

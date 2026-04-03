@@ -372,6 +372,23 @@ function requiresSettlement(status) {
   return status === "cashout" || status === "partial_void";
 }
 
+function getStatusOptionsMarkup(selectedStatus) {
+  const options = [
+    ["pending", "Pendente"],
+    ["won", "Ganha"],
+    ["lost", "Perdida"],
+    ["half_won", "Half Won"],
+    ["half_lost", "Half Lost"],
+    ["cashout", "Cashout"],
+    ["partial_void", "Partial Void"],
+    ["void", "Void"]
+  ];
+
+  return options
+    .map(([value, label]) => `<option value="${value}"${value === selectedStatus ? " selected" : ""}>${label}</option>`)
+    .join("");
+}
+
 function updateSettlementVisibility() {
   const visible = requiresSettlement(elements.status.value);
   elements.settlementField.classList.toggle("hidden", !visible);
@@ -554,6 +571,10 @@ function renderBets() {
           </div>
           ${notes}
           <div class="bet-item-actions">
+            <select class="status-select" data-id="${bet.id}">
+              ${getStatusOptionsMarkup(bet.status)}
+            </select>
+            <button type="button" class="ghost-button" data-action="update-status" data-id="${bet.id}">Atualizar estado</button>
             <button type="button" class="ghost-button" data-action="edit" data-id="${bet.id}">Editar</button>
             <button type="button" class="ghost-button" data-action="delete" data-id="${bet.id}">Apagar</button>
           </div>
@@ -781,6 +802,50 @@ async function handleBetListClick(event) {
 
   if (action === "edit") {
     startEditingBet(id);
+    return;
+  }
+
+  if (action === "update-status") {
+    const select = elements.betsList.querySelector(`select.status-select[data-id="${id}"]`);
+    const bet = bets.find((entry) => String(entry.id) === String(id));
+    if (!select || !bet) {
+      return;
+    }
+
+    const nextStatus = select.value;
+    let settlementReturn = bet.settlement_return;
+
+    if (requiresSettlement(nextStatus)) {
+      const response = window.prompt("Indica o retorno final em unidades para este estado.", settlementReturn ?? "");
+      if (response === null) {
+        return;
+      }
+
+      const parsed = Number(response);
+      if (Number.isNaN(parsed)) {
+        setMessage("Retorno final inválido.", "warning");
+        return;
+      }
+
+      settlementReturn = parsed;
+    } else {
+      settlementReturn = null;
+    }
+
+    const payload = {
+      status: nextStatus,
+      settlement_return: settlementReturn,
+      profit: calculateProfit(bet.stake, bet.odds, nextStatus, settlementReturn)
+    };
+
+    const { error } = await supabaseClient.from("bets").update(payload).eq("id", id);
+    if (error) {
+      setMessage(error.message, "warning");
+      return;
+    }
+
+    setMessage("Estado da aposta atualizado com sucesso.");
+    await fetchBets();
     return;
   }
 
