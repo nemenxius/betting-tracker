@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registo de Apostas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="background-glow"></div>
+  <main class="app-shell">
+    <section class="hero card">
+      <div>
+        <p class="eyebrow">Apostas pessoais</p>
+        <h1>Regista cada aposta sem folhas soltas nem notas perdidas.</h1>
+        <p class="hero-copy">
+          Uma app pequena, direta e ligada ao Supabase para guardares histórico,
+          stake, odds, resultado e lucro.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <article>
+          <span id="stat-total">0</span>
+          <small>Apostas</small>
+        </article>
+        <article>
+          <span id="stat-profit">0.00€</span>
+          <small>Lucro líquido</small>
+        </article>
+        <article>
+          <span id="stat-roi">0%</span>
+          <small>ROI</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card auth-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Conta</p>
+            <h2>Acesso</h2>
+          </div>
+          <button id="logout-button" class="ghost-button hidden" type="button">Sair</button>
+        </div>
+
+      <div id="config-warning" class="notice warning hidden">
+          Configura a ligação Supabase abaixo ou preenche o ficheiro <code>config.js</code>.
+      </div>
+
+        <form id="supabase-config-form" class="stack">
+          <label>
+            <span>Supabase URL</span>
+            <input id="supabase-url" type="url" placeholder="https://teu-projeto.supabase.co">
+          </label>
+          <label>
+            <span>Supabase anon key</span>
+            <textarea id="supabase-anon-key" rows="3" placeholder="eyJ..."></textarea>
+          </label>
+          <div class="actions">
+            <button id="save-config-button" type="submit">Guardar configuração</button>
+            <button id="reset-config-button" class="secondary-button" type="button">Limpar</button>
+          </div>
+        </form>
+
+        <form id="auth-form" class="stack">
+          <label>
+            <span>Email</span>
+            <input id="auth-email" type="email" placeholder="tu@exemplo.com" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="auth-password" type="password" placeholder="Min. 6 caracteres" required minlength="6">
+          </label>
+          <div class="actions">
+            <button id="login-button" type="submit">Entrar</button>
+            <button id="signup-button" class="secondary-button" type="button">Criar conta</button>
+          </div>
+        </form>
+
+        <div id="user-panel" class="user-panel hidden">
+          <p>Sessão iniciada com <strong id="user-email"></strong></p>
+          <p class="muted">Os teus registos ficam associados à tua conta.</p>
+        </div>
+      </div>
+
+      <div class="card form-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Nova entrada</p>
+            <h2>Registar aposta</h2>
+          </div>
+        </div>
+
+        <form id="bet-form" class="stack">
+          <label>
+            <span>Evento</span>
+            <input id="event-name" type="text" placeholder="Benfica vs Porto" required>
+          </label>
+          <label>
+            <span>Mercado</span>
+            <input id="market-name" type="text" placeholder="Mais de 2.5 golos" required>
+          </label>
+          <div class="inline-fields">
+            <label>
+              <span>Casa de aposta</span>
+              <input id="bookmaker" type="text" placeholder="Betano">
+            </label>
+            <label>
+              <span>Data</span>
+              <input id="bet-date" type="date" required>
+            </label>
+          </div>
+          <div class="inline-fields">
+            <label>
+              <span>Stake (€)</span>
+              <input id="stake" type="number" min="0" step="0.01" placeholder="10.00" required>
+            </label>
+            <label>
+              <span>Odds</span>
+              <input id="odds" type="number" min="1" step="0.01" placeholder="1.85" required>
+            </label>
+          </div>
+          <div class="inline-fields">
+            <label>
+              <span>Resultado</span>
+              <select id="status" required>
+                <option value="pending">Pendente</option>
+                <option value="won">Ganha</option>
+                <option value="lost">Perdida</option>
+                <option value="void">Void</option>
+              </select>
+            </label>
+            <label>
+              <span>Lucro (€)</span>
+              <input id="profit" type="number" step="0.01" placeholder="8.50">
+            </label>
+          </div>
+          <label>
+            <span>Notas</span>
+            <textarea id="notes" rows="3" placeholder="Observações, estratégia, motivo da aposta..."></textarea>
+          </label>
+          <button id="save-bet-button" type="submit">Guardar aposta</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card filters-card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Histórico</p>
+          <h2>As tuas apostas</h2>
+        </div>
+      </div>
+
+      <div class="inline-fields">
+        <label>
+          <span>Filtrar por estado</span>
+          <select id="filter-status">
+            <option value="all">Todos</option>
+            <option value="pending">Pendente</option>
+            <option value="won">Ganha</option>
+            <option value="lost">Perdida</option>
+            <option value="void">Void</option>
+          </select>
+        </label>
+        <label>
+          <span>Pesquisar</span>
+          <input id="filter-query" type="search" placeholder="Evento, mercado, casa...">
+        </label>
+      </div>
+
+      <div id="message-box" class="notice hidden"></div>
+      <div id="bets-list" class="bets-list empty-state">
+        Inicia sessão para veres e criares registos.
+      </div>
+    </section>
+  </main>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
