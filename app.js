@@ -1,32 +1,16 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const { createClient } = window.supabase;
 
-const CONFIG_STORAGE_KEY = "apostas-registo.supabase-config";
-
-function getStoredConfig() {
-  try {
-    return JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) || "null") || {};
-  } catch {
-    return {};
-  }
-}
-
-function getMergedConfig() {
-  const fileConfig = window.APP_CONFIG || {};
-  const storedConfig = getStoredConfig();
-  return {
-    supabaseUrl: storedConfig.supabaseUrl || fileConfig.supabaseUrl || "",
-    supabaseAnonKey: storedConfig.supabaseAnonKey || fileConfig.supabaseAnonKey || ""
-  };
-}
-
-let config = getMergedConfig();
+const config = window.APP_CONFIG || {};
+const hasValidConfig =
+  typeof config.supabaseUrl === "string" &&
+  typeof config.supabaseAnonKey === "string" &&
+  config.supabaseUrl.startsWith("https://") &&
+  !config.supabaseUrl.includes("YOUR_PROJECT_ID") &&
+  !config.supabaseAnonKey.includes("YOUR_SUPABASE_ANON_KEY") &&
+  config.supabaseAnonKey.trim().length > 20;
 
 const elements = {
   authForm: document.querySelector("#auth-form"),
-  supabaseConfigForm: document.querySelector("#supabase-config-form"),
-  supabaseUrl: document.querySelector("#supabase-url"),
-  supabaseAnonKey: document.querySelector("#supabase-anon-key"),
-  resetConfigButton: document.querySelector("#reset-config-button"),
   email: document.querySelector("#auth-email"),
   password: document.querySelector("#auth-password"),
   signupButton: document.querySelector("#signup-button"),
@@ -61,35 +45,11 @@ let currentUser = null;
 let bets = [];
 let authSubscription = null;
 
-elements.supabaseUrl.value = config.supabaseUrl;
-elements.supabaseAnonKey.value = config.supabaseAnonKey;
-
-setupSupabaseClient();
-
-function hasValidConfig(currentConfig) {
-  return (
-    typeof currentConfig.supabaseUrl === "string" &&
-    typeof currentConfig.supabaseAnonKey === "string" &&
-    currentConfig.supabaseUrl.startsWith("https://") &&
-    !currentConfig.supabaseUrl.includes("YOUR_PROJECT_ID") &&
-    !currentConfig.supabaseAnonKey.includes("YOUR_SUPABASE_ANON_KEY") &&
-    currentConfig.supabaseAnonKey.trim().length > 20
-  );
-}
-
-function setupSupabaseClient() {
-  const validConfig = hasValidConfig(config);
-
-  if (validConfig) {
-    supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
-    elements.configWarning.classList.add("hidden");
-    disableForms(false);
-    return;
-  }
-
-  supabase = null;
+if (hasValidConfig) {
+  supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
+} else {
   elements.configWarning.classList.remove("hidden");
-  setMessage("Configura a Supabase para ativar login e registo de apostas.", "warning");
+  setMessage("Preenche o ficheiro config.js antes de usar a app.", "warning");
   disableForms(true);
 }
 
@@ -249,16 +209,9 @@ function setAuthUi(user) {
   elements.logoutButton.classList.toggle("hidden", !isLoggedIn);
   elements.authForm.classList.toggle("hidden", isLoggedIn);
 
-  if (isLoggedIn) {
-    elements.userEmail.textContent = user.email;
-    elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
-      field.disabled = false;
-    });
-  } else {
-    elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
-      field.disabled = true;
-    });
-  }
+  elements.betForm.querySelectorAll("input, select, textarea, button").forEach((field) => {
+    field.disabled = !isLoggedIn;
+  });
 
   renderBets();
 }
@@ -301,41 +254,6 @@ async function handleAuthSubmit(event) {
 
   setMessage("Sessão iniciada com sucesso.");
   elements.authForm.reset();
-}
-
-async function handleSupabaseConfig(event) {
-  event.preventDefault();
-
-  const nextConfig = {
-    supabaseUrl: elements.supabaseUrl.value.trim(),
-    supabaseAnonKey: elements.supabaseAnonKey.value.trim()
-  };
-
-  if (!hasValidConfig(nextConfig)) {
-    setMessage("A URL ou a anon key parecem incompletas.", "warning");
-    return;
-  }
-
-  window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(nextConfig));
-  config = getMergedConfig();
-  setupSupabaseClient();
-  setAuthUi(null);
-  bets = [];
-  renderBets();
-  setMessage("Ligação Supabase guardada. Já podes criar conta ou iniciar sessão.");
-  await init();
-}
-
-function handleResetConfig() {
-  window.localStorage.removeItem(CONFIG_STORAGE_KEY);
-  config = getMergedConfig();
-  elements.supabaseUrl.value = config.supabaseUrl;
-  elements.supabaseAnonKey.value = config.supabaseAnonKey;
-  setupSupabaseClient();
-  currentUser = null;
-  bets = [];
-  setAuthUi(null);
-  setMessage("Configuração local removida.", "warning");
 }
 
 async function handleSignup() {
@@ -417,22 +335,23 @@ async function init() {
     return;
   }
 
-  setAuthUi(data.session?.user || null);
+  setAuthUi(data.session ? data.session.user : null);
 
-  if (data.session?.user) {
+  if (data.session && data.session.user) {
     await fetchBets();
   }
 
-  authSubscription?.subscription?.unsubscribe();
+  if (authSubscription && authSubscription.subscription) {
+    authSubscription.subscription.unsubscribe();
+  }
+
   authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
-    setAuthUi(session?.user || null);
+    setAuthUi(session ? session.user : null);
     await fetchBets();
   });
 }
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
-elements.supabaseConfigForm.addEventListener("submit", handleSupabaseConfig);
-elements.resetConfigButton.addEventListener("click", handleResetConfig);
 elements.signupButton.addEventListener("click", handleSignup);
 elements.logoutButton.addEventListener("click", handleLogout);
 elements.betForm.addEventListener("submit", handleBetSubmit);

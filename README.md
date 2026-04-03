@@ -26,13 +26,15 @@ App web minimalista para registar apostas com Supabase e alojar num repositório
 4. Em `Project Settings > API`, copia:
    - `Project URL`
    - `anon public key`
-5. Abre a app e cola esses dois valores no bloco de configuração Supabase.
-6. Em alternativa, podes substituir os placeholders em `config.js`.
+5. Substitui os placeholders em `config.js`.
 
 ## Publicar
 
-Podes publicar esta pasta num novo repositório GitHub e ativar GitHub Pages na branch principal.
-Como a configuração também pode ser guardada no browser, o repositório pode continuar com os placeholders por defeito.
+Podes abrir a app localmente ou publicar esta pasta num repositório GitHub e ativar GitHub Pages na branch principal.
+
+## Execução local
+
+Se o browser bloquear scripts ao abrir o ficheiro com `file://`, usa um servidor local simples em vez de abrir o HTML diretamente.
 
 ## Nota de segurança
 

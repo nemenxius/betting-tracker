@@ -47,24 +47,9 @@
           <button id="logout-button" class="ghost-button hidden" type="button">Sair</button>
         </div>
 
-      <div id="config-warning" class="notice warning hidden">
-          Configura a ligação Supabase abaixo ou preenche o ficheiro <code>config.js</code>.
-      </div>
-
-        <form id="supabase-config-form" class="stack">
-          <label>
-            <span>Supabase URL</span>
-            <input id="supabase-url" type="url" placeholder="https://teu-projeto.supabase.co">
-          </label>
-          <label>
-            <span>Supabase anon key</span>
-            <textarea id="supabase-anon-key" rows="3" placeholder="eyJ..."></textarea>
-          </label>
-          <div class="actions">
-            <button id="save-config-button" type="submit">Guardar configuração</button>
-            <button id="reset-config-button" class="secondary-button" type="button">Limpar</button>
-          </div>
-        </form>
+        <div id="config-warning" class="notice warning hidden">
+          Preenche o ficheiro <code>config.js</code> com a URL e chave anónima da tua Supabase.
+        </div>
 
         <form id="auth-form" class="stack">
           <label>
@@ -181,6 +166,7 @@
   </main>
 
   <script src="./config.js"></script>
-  <script type="module" src="./app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
