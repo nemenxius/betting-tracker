@@ -1,4 +1,4 @@
 window.APP_CONFIG = {
   supabaseUrl: "https://xxcmjfyjkpxlhrokkfgv.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4Y21qZnlqa3B4bGhyb2trZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDQ0ODEsImV4cCI6MjA5MDgyMDQ4MX0.I_9lBEhFJAil9Emj1rD6kzPftQ1ZZ5R4bqHUsUZ_9II"
 };
