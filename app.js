@@ -40,13 +40,13 @@ const elements = {
 const defaultDate = new Date().toISOString().split("T")[0];
 elements.betDate.value = defaultDate;
 
-let supabase = null;
+let supabaseClient = null;
 let currentUser = null;
 let bets = [];
 let authSubscription = null;
 
 if (hasValidConfig) {
-  supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
+  supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
 } else {
   elements.configWarning.classList.remove("hidden");
   setMessage("Preenche o ficheiro config.js antes de usar a app.", "warning");
@@ -217,13 +217,13 @@ function setAuthUi(user) {
 }
 
 async function fetchBets() {
-  if (!supabase || !currentUser) {
+  if (!supabaseClient || !currentUser) {
     bets = [];
     renderBets();
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("bets")
     .select("*")
     .order("bet_date", { ascending: false })
@@ -245,7 +245,7 @@ async function handleAuthSubmit(event) {
   const email = elements.email.value.trim();
   const password = elements.password.value.trim();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
   if (error) {
     setMessage(error.message, "warning");
@@ -266,7 +266,7 @@ async function handleSignup() {
     return;
   }
 
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabaseClient.auth.signUp({ email, password });
 
   if (error) {
     setMessage(error.message, "warning");
@@ -277,7 +277,7 @@ async function handleSignup() {
 }
 
 async function handleLogout() {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await supabaseClient.auth.signOut();
 
   if (error) {
     setMessage(error.message, "warning");
@@ -309,7 +309,7 @@ async function handleBetSubmit(event) {
     notes: elements.notes.value.trim() || null
   };
 
-  const { error } = await supabase.from("bets").insert(payload);
+  const { error } = await supabaseClient.from("bets").insert(payload);
 
   if (error) {
     setMessage(error.message, "warning");
@@ -324,11 +324,11 @@ async function handleBetSubmit(event) {
 }
 
 async function init() {
-  if (!supabase) {
+  if (!supabaseClient) {
     return;
   }
 
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await supabaseClient.auth.getSession();
 
   if (error) {
     setMessage(error.message, "warning");
@@ -345,7 +345,7 @@ async function init() {
     authSubscription.subscription.unsubscribe();
   }
 
-  authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+  authSubscription = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     setAuthUi(session ? session.user : null);
     await fetchBets();
   });
