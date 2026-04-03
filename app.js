@@ -34,6 +34,8 @@ const elements = {
   stake: document.querySelector("#stake"),
   odds: document.querySelector("#odds"),
   status: document.querySelector("#status"),
+  settlementField: document.querySelector("#settlement-field"),
+  settlementReturn: document.querySelector("#settlement-return"),
   notes: document.querySelector("#notes"),
   betsList: document.querySelector("#bets-list"),
   pagination: document.querySelector("#pagination"),
@@ -127,6 +129,10 @@ function formatStatus(status) {
     pending: "Pendente",
     won: "Ganha",
     lost: "Perdida",
+    half_won: "Half Won",
+    half_lost: "Half Lost",
+    cashout: "Cashout",
+    partial_void: "Partial Void",
     void: "Void"
   };
 
@@ -167,9 +173,10 @@ function deriveBetType(marketName) {
   return "Other";
 }
 
-function calculateProfit(stake, odds, status) {
+function calculateProfit(stake, odds, status, settlementReturn) {
   const numericStake = Number(stake);
   const numericOdds = Number(odds);
+  const numericSettlement = Number(settlementReturn);
 
   if (status === "won") {
     return Number((numericStake * numericOdds - numericStake).toFixed(2));
@@ -179,7 +186,32 @@ function calculateProfit(stake, odds, status) {
     return Number((-numericStake).toFixed(2));
   }
 
+  if (status === "half_won") {
+    return Number((((numericStake / 2) * numericOdds + numericStake / 2) - numericStake).toFixed(2));
+  }
+
+  if (status === "half_lost") {
+    return Number((-(numericStake / 2)).toFixed(2));
+  }
+
+  if (status === "cashout" || status === "partial_void") {
+    return Number((numericSettlement - numericStake).toFixed(2));
+  }
+
   return 0;
+}
+
+function requiresSettlement(status) {
+  return status === "cashout" || status === "partial_void";
+}
+
+function updateSettlementVisibility() {
+  const visible = requiresSettlement(elements.status.value);
+  elements.settlementField.classList.toggle("hidden", !visible);
+  elements.settlementReturn.required = visible;
+  if (!visible) {
+    elements.settlementReturn.value = "";
+  }
 }
 
 function renderDataList(target, values) {
@@ -230,6 +262,8 @@ function resetBetForm() {
   elements.betDate.value = defaultDate;
   elements.status.value = "pending";
   elements.betType.value = "";
+  elements.settlementReturn.value = "";
+  updateSettlementVisibility();
   elements.editingBanner.classList.add("hidden");
   elements.saveBetButton.textContent = "Guardar aposta";
 }
@@ -251,7 +285,9 @@ function startEditingBet(betId) {
   elements.stake.value = bet.stake ?? "";
   elements.odds.value = bet.odds ?? "";
   elements.status.value = bet.status || "pending";
+  elements.settlementReturn.value = bet.settlement_return ?? "";
   elements.notes.value = bet.notes || "";
+  updateSettlementVisibility();
   elements.editingBanner.classList.remove("hidden");
   elements.saveBetButton.textContent = "Atualizar aposta";
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -516,7 +552,14 @@ async function handleBetSubmit(event) {
   const status = elements.status.value;
   const stake = Number(elements.stake.value);
   const odds = Number(elements.odds.value);
-  const profit = calculateProfit(stake, odds, status);
+  const settlementReturn = requiresSettlement(status) ? Number(elements.settlementReturn.value) : null;
+
+  if (requiresSettlement(status) && Number.isNaN(settlementReturn)) {
+    setMessage("Preenche o retorno final para este tipo de liquidação.", "warning");
+    return;
+  }
+
+  const profit = calculateProfit(stake, odds, status, settlementReturn);
 
   const payload = {
     tipster: elements.tipster.value.trim() || null,
@@ -529,6 +572,7 @@ async function handleBetSubmit(event) {
     stake,
     odds,
     status,
+    settlement_return: settlementReturn,
     profit,
     notes: elements.notes.value.trim() || null
   };
@@ -628,6 +672,7 @@ elements.betsList.addEventListener("click", handleBetListClick);
 elements.marketName.addEventListener("input", () => {
   elements.betType.value = deriveBetType(elements.marketName.value);
 });
+elements.status.addEventListener("change", updateSettlementVisibility);
 elements.filterStatus.addEventListener("change", () => {
   currentPage = 1;
   renderBets();

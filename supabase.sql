@@ -10,7 +10,8 @@ create table if not exists public.bets (
   bet_date date not null,
   stake numeric(10, 2) not null check (stake >= 0),
   odds numeric(10, 2) not null check (odds >= 1),
-  status text not null check (status in ('pending', 'won', 'lost', 'void')),
+  status text not null check (status in ('pending', 'won', 'lost', 'half_won', 'half_lost', 'cashout', 'partial_void', 'void')),
+  settlement_return numeric(10, 2),
   profit numeric(10, 2) not null default 0,
   notes text,
   created_at timestamptz not null default now()
@@ -44,6 +45,7 @@ alter table public.bets add column if not exists tipster text;
 alter table public.bets add column if not exists bookie text;
 alter table public.bets add column if not exists sport text;
 alter table public.bets add column if not exists bet_type text not null default 'Other';
+alter table public.bets add column if not exists settlement_return numeric(10, 2);
 
 update public.bets
 set

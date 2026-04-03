@@ -9,6 +9,7 @@ Os utilizadores são geridos diretamente no painel da Supabase.
 - Registo de apostas com tipster, bookie, sport, evento, mercado, bet type, stake, odds, resultado, lucro e notas em unidades
 - Bet type calculado automaticamente a partir do mercado
 - Lucro calculado automaticamente a partir de stake, odds e resultado
+- Suporte para resultados especiais: half won, half lost, cashout e partial void
 - Campos de tipster, bookie e sport com sugestões automáticas alimentadas pelas entradas já gravadas
 - Filtros por estado, mês, tipster, bookie, sport, bet type e pesquisa
 - Ordenação por data, lucro e stake
