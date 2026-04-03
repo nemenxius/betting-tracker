@@ -14,6 +14,9 @@ const elements = {
   email: document.querySelector("#auth-email"),
   password: document.querySelector("#auth-password"),
   logoutButton: document.querySelector("#logout-button"),
+  openEntryButton: document.querySelector("#open-entry-button"),
+  closeEntryButton: document.querySelector("#close-entry-button"),
+  entryModal: document.querySelector("#entry-modal"),
   openImportButton: document.querySelector("#open-import-button"),
   closeImportButton: document.querySelector("#close-import-button"),
   importModal: document.querySelector("#import-modal"),
@@ -147,6 +150,18 @@ function closeImportModal() {
   elements.importModal.classList.add("hidden");
   elements.importFile.value = "";
   clearImportMessage();
+}
+
+function openEntryModal() {
+  if (!currentUser) {
+    return;
+  }
+
+  elements.entryModal.classList.remove("hidden");
+}
+
+function closeEntryModal() {
+  elements.entryModal.classList.add("hidden");
 }
 
 function formatUnits(value) {
@@ -410,6 +425,7 @@ function resetBetForm() {
   updateSettlementVisibility();
   elements.editingBanner.classList.add("hidden");
   elements.saveBetButton.textContent = "Guardar aposta";
+  closeEntryModal();
 }
 
 function startEditingBet(betId) {
@@ -434,6 +450,7 @@ function startEditingBet(betId) {
   updateSettlementVisibility();
   elements.editingBanner.classList.remove("hidden");
   elements.saveBetButton.textContent = "Atualizar aposta";
+  openEntryModal();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -570,6 +587,7 @@ function setAuthUi(user) {
   } else {
     resetBetForm();
     currentPage = 1;
+    closeEntryModal();
     closeImportModal();
   }
 
@@ -880,6 +898,8 @@ async function init() {
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
+elements.openEntryButton.addEventListener("click", openEntryModal);
+elements.closeEntryButton.addEventListener("click", closeEntryModal);
 elements.openImportButton.addEventListener("click", openImportModal);
 elements.closeImportButton.addEventListener("click", closeImportModal);
 elements.importButton.addEventListener("click", handleImportCsv);
