@@ -272,6 +272,51 @@ function formatStatus(status) {
   return labels[status] || status;
 }
 
+function parseNumericInput(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(",", ".");
+
+  if (!normalized) {
+    return Number.NaN;
+  }
+
+  return Number(normalized);
+}
+
+function validateBetForm() {
+  if (!elements.eventName.value.trim()) {
+    return "Preenche o evento.";
+  }
+
+  if (!elements.marketName.value.trim()) {
+    return "Preenche o mercado.";
+  }
+
+  if (!elements.betDate.value) {
+    return "Seleciona a data da aposta.";
+  }
+
+  const stake = parseNumericInput(elements.stake.value);
+  if (Number.isNaN(stake) || stake < 0) {
+    return "Indica uma stake válida em unidades.";
+  }
+
+  const odds = parseNumericInput(elements.odds.value);
+  if (Number.isNaN(odds) || odds < 1) {
+    return "Indica odds válidas.";
+  }
+
+  if (requiresSettlement(elements.status.value)) {
+    const settlementReturn = parseNumericInput(elements.settlementReturn.value);
+    if (Number.isNaN(settlementReturn) || settlementReturn < 0) {
+      return "Preenche o retorno final para este tipo de liquidação.";
+    }
+  }
+
+  return "";
+}
+
 function deriveBetType(marketName) {
   const value = String(marketName || "").trim().toLowerCase();
 
@@ -1132,15 +1177,16 @@ async function handleBetSubmit(event) {
     return;
   }
 
-  if (!elements.betForm.reportValidity()) {
-    setEntryMessage("Confirma os campos obrigatórios antes de guardar.", "warning");
+  const validationMessage = validateBetForm();
+  if (validationMessage) {
+    setEntryMessage(validationMessage, "warning");
     return;
   }
 
   const status = elements.status.value;
-  const stake = Number(elements.stake.value);
-  const odds = Number(elements.odds.value);
-  const settlementReturn = requiresSettlement(status) ? Number(elements.settlementReturn.value) : null;
+  const stake = parseNumericInput(elements.stake.value);
+  const odds = parseNumericInput(elements.odds.value);
+  const settlementReturn = requiresSettlement(status) ? parseNumericInput(elements.settlementReturn.value) : null;
 
   if (requiresSettlement(status) && Number.isNaN(settlementReturn)) {
     setEntryMessage("Preenche o retorno final para este tipo de liquidação.", "warning");
