@@ -735,6 +735,42 @@ function updateAutocompleteOptions() {
   renderDataList(elements.sportOptions, suggestions.sports.concat(bets.map((bet) => bet.sport)));
 }
 
+function hasKnownSuggestion(collection, value) {
+  const cleanValue = String(value || "").trim().toLowerCase();
+  if (!cleanValue) {
+    return false;
+  }
+
+  return collection.some((entry) => String(entry || "").trim().toLowerCase() === cleanValue);
+}
+
+function queuePostSaveRefresh(payload) {
+  const suggestionTasks = [];
+
+  if (!hasKnownSuggestion(suggestions.tipsters, payload.tipster) && !hasKnownSuggestion(bets.map((bet) => bet.tipster), payload.tipster)) {
+    suggestionTasks.push(syncSuggestion("tipsters", payload.tipster));
+  }
+
+  if (!hasKnownSuggestion(suggestions.bookies, payload.bookie) && !hasKnownSuggestion(bets.map((bet) => bet.bookie), payload.bookie)) {
+    suggestionTasks.push(syncSuggestion("bookies", payload.bookie));
+  }
+
+  if (!hasKnownSuggestion(suggestions.sports, payload.sport) && !hasKnownSuggestion(bets.map((bet) => bet.sport), payload.sport)) {
+    suggestionTasks.push(syncSuggestion("sports", payload.sport));
+  }
+
+  Promise.allSettled([
+    ...suggestionTasks,
+    withTimeout(fetchSuggestions(), 10000, "As sugestões demoraram demasiado tempo a atualizar."),
+    withTimeout(fetchBets(), 10000, "O histórico demorou demasiado tempo a atualizar.")
+  ]).then((results) => {
+    const failedResult = results.find((result) => result.status === "rejected");
+    if (failedResult) {
+      showTransientMessage("A aposta ficou guardada, mas a atualização do painel falhou.", "warning", 5000);
+    }
+  });
+}
+
 function updateStats(sourceBets) {
   const resolvedBets = sourceBets.filter((bet) => bet.status !== "pending");
   const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
@@ -1141,7 +1177,7 @@ async function handleBetSubmit(event) {
       ? supabaseClient.from("bets").update(payload).eq("id", editingBetId).select("id").single()
       : supabaseClient.from("bets").insert([payload]).select("id").single();
 
-    const { error } = await withTimeout(
+    const { data, error } = await withTimeout(
       query,
       12000,
       "A ligação à base de dados demorou demasiado tempo. Tenta novamente."
@@ -1153,27 +1189,36 @@ async function handleBetSubmit(event) {
       return;
     }
 
-    const suggestionResults = await Promise.allSettled([
-      syncSuggestion("tipsters", payload.tipster),
-      syncSuggestion("bookies", payload.bookie),
-      syncSuggestion("sports", payload.sport)
-    ]);
+    const savedBet = {
+      id: data?.id ?? `temp-${Date.now()}`,
+      ...payload,
+      created_at: new Date().toISOString()
+    };
 
-    const failedSuggestion = suggestionResults.find((result) =>
-      result.status === "rejected" ||
-      (result.status === "fulfilled" && result.value && result.value.ok === false)
-    );
+    if (editingBetId) {
+      bets = bets.map((bet) => (String(bet.id) === String(editingBetId) ? { ...bet, ...savedBet } : bet));
+    } else {
+      bets = [savedBet, ...bets];
+    }
+
+    if (payload.tipster && !hasKnownSuggestion(suggestions.tipsters, payload.tipster)) {
+      suggestions.tipsters = suggestions.tipsters.concat(payload.tipster);
+    }
+
+    if (payload.bookie && !hasKnownSuggestion(suggestions.bookies, payload.bookie)) {
+      suggestions.bookies = suggestions.bookies.concat(payload.bookie);
+    }
+
+    if (payload.sport && !hasKnownSuggestion(suggestions.sports, payload.sport)) {
+      suggestions.sports = suggestions.sports.concat(payload.sport);
+    }
+
+    updateAutocompleteOptions();
+    renderBets();
 
     resetBetForm();
     setMessage(successMessage);
-    await Promise.all([
-      withTimeout(fetchSuggestions(), 10000, "As sugestões demoraram demasiado tempo a atualizar."),
-      withTimeout(fetchBets(), 10000, "O histórico demorou demasiado tempo a atualizar.")
-    ]);
-
-    if (failedSuggestion) {
-      showTransientMessage("A aposta ficou guardada, mas a atualização das sugestões falhou.", "warning", 5000);
-    }
+    queuePostSaveRefresh(payload);
     return;
   } catch (error) {
     if (elements.entryModal.classList.contains("hidden")) {
