@@ -36,6 +36,7 @@ const elements = {
   importButton: document.querySelector("#import-button"),
   betForm: document.querySelector("#bet-form"),
   editingBanner: document.querySelector("#editing-banner"),
+  entryMessageBox: document.querySelector("#entry-message-box"),
   cancelEditButton: document.querySelector("#cancel-edit-button"),
   saveBetButton: document.querySelector("#save-bet-button"),
   tipster: document.querySelector("#tipster"),
@@ -162,6 +163,14 @@ function clearImportMessage() {
   clearNotice(elements.importMessageBox);
 }
 
+function setEntryMessage(message, tone = "info") {
+  setNotice(elements.entryMessageBox, message, tone);
+}
+
+function clearEntryMessage() {
+  clearNotice(elements.entryMessageBox);
+}
+
 function setOcrMessage(message, tone = "info") {
   setNotice(elements.ocrMessageBox, message, tone);
 }
@@ -215,13 +224,15 @@ function openEntryModal() {
     return;
   }
 
+  clearEntryMessage();
   document.body.style.overflow = "hidden";
   elements.entryModal.classList.remove("hidden");
 }
 
 function closeEntryModal() {
   elements.entryModal.classList.add("hidden");
-  if (elements.importModal.classList.contains("hidden")) {
+  clearEntryMessage();
+  if (elements.importModal.classList.contains("hidden") && elements.ocrModal.classList.contains("hidden")) {
     document.body.style.overflow = "";
   }
 }
@@ -757,6 +768,7 @@ function resetBetForm() {
   elements.betType.value = "";
   elements.settlementReturn.value = "";
   updateSettlementVisibility();
+  clearEntryMessage();
   elements.editingBanner.classList.add("hidden");
   elements.saveBetButton.textContent = "Guardar aposta";
   closeEntryModal();
@@ -1050,6 +1062,17 @@ async function handleLogout() {
 async function handleBetSubmit(event) {
   event.preventDefault();
   clearMessage();
+  clearEntryMessage();
+
+  if (!currentUser) {
+    setEntryMessage("Inicia sessão antes de guardar uma aposta.", "warning");
+    return;
+  }
+
+  if (!elements.betForm.reportValidity()) {
+    setEntryMessage("Confirma os campos obrigatórios antes de guardar.", "warning");
+    return;
+  }
 
   const status = elements.status.value;
   const stake = Number(elements.stake.value);
@@ -1057,49 +1080,68 @@ async function handleBetSubmit(event) {
   const settlementReturn = requiresSettlement(status) ? Number(elements.settlementReturn.value) : null;
 
   if (requiresSettlement(status) && Number.isNaN(settlementReturn)) {
-    setMessage("Preenche o retorno final para este tipo de liquidação.", "warning");
+    setEntryMessage("Preenche o retorno final para este tipo de liquidação.", "warning");
     return;
   }
 
-  const profit = calculateProfit(stake, odds, status, settlementReturn);
+  elements.saveBetButton.disabled = true;
+  elements.saveBetButton.textContent = editingBetId ? "A atualizar..." : "A guardar...";
 
-  const payload = {
-    tipster: elements.tipster.value.trim() || null,
-    bookie: elements.bookie.value.trim() || null,
-    sport: elements.sport.value.trim() || null,
-    event_name: elements.eventName.value.trim(),
-    market_name: elements.marketName.value.trim(),
-    bet_type: deriveBetType(elements.marketName.value),
-    bet_date: elements.betDate.value,
-    stake,
-    odds,
-    status,
-    settlement_return: settlementReturn,
-    profit,
-    notes: elements.notes.value.trim() || null
-  };
+  try {
+    const successMessage = editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.";
+    const nextButtonLabel = editingBetId ? "Atualizar aposta" : "Guardar aposta";
+    const profit = calculateProfit(stake, odds, status, settlementReturn);
 
-  const query = editingBetId
-    ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
-    : supabaseClient.from("bets").insert(payload);
+    const payload = {
+      tipster: elements.tipster.value.trim() || null,
+      bookie: elements.bookie.value.trim() || null,
+      sport: elements.sport.value.trim() || null,
+      event_name: elements.eventName.value.trim(),
+      market_name: elements.marketName.value.trim(),
+      bet_type: deriveBetType(elements.marketName.value),
+      bet_date: elements.betDate.value,
+      stake,
+      odds,
+      status,
+      settlement_return: settlementReturn,
+      profit,
+      notes: elements.notes.value.trim() || null
+    };
 
-  const { error } = await query;
+    const query = editingBetId
+      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
+      : supabaseClient.from("bets").insert(payload);
 
-  if (error) {
-    setMessage(error.message, "warning");
+    const { error } = await query;
+
+    if (error) {
+      setEntryMessage(error.message, "warning");
+      elements.saveBetButton.textContent = nextButtonLabel;
+      return;
+    }
+
+    await Promise.all([
+      syncSuggestion("tipsters", payload.tipster),
+      syncSuggestion("bookies", payload.bookie),
+      syncSuggestion("sports", payload.sport)
+    ]);
+
+    resetBetForm();
+    setMessage(successMessage);
+    await fetchSuggestions();
+    await fetchBets();
     return;
+  } catch (error) {
+    setEntryMessage(error.message || "Ocorreu um erro ao guardar a aposta.", "warning");
+    return;
+  } finally {
+    elements.saveBetButton.disabled = false;
+    if (editingBetId) {
+      elements.saveBetButton.textContent = "Atualizar aposta";
+    } else {
+      elements.saveBetButton.textContent = "Guardar aposta";
+    }
   }
-
-  await Promise.all([
-    syncSuggestion("tipsters", payload.tipster),
-    syncSuggestion("bookies", payload.bookie),
-    syncSuggestion("sports", payload.sport)
-  ]);
-
-  setMessage(editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.");
-  resetBetForm();
-  await fetchSuggestions();
-  await fetchBets();
 }
 
 async function handleBetListClick(event) {
