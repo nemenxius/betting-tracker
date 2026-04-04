@@ -804,14 +804,18 @@ function queuePostSaveRefresh(payload) {
     suggestionTasks.push(syncSuggestion("sports", payload.sport));
   }
 
-  Promise.allSettled([
-    ...suggestionTasks,
-    withTimeout(fetchSuggestions(), 10000, "As sugestões demoraram demasiado tempo a atualizar."),
-    withTimeout(fetchBets(), 10000, "O histórico demorou demasiado tempo a atualizar.")
-  ]).then((results) => {
-    const failedResult = results.find((result) => result.status === "rejected");
+  if (!suggestionTasks.length) {
+    return;
+  }
+
+  Promise.allSettled(suggestionTasks).then((results) => {
+    const failedResult = results.find((result) =>
+      result.status === "rejected" ||
+      (result.status === "fulfilled" && result.value && result.value.ok === false)
+    );
+
     if (failedResult) {
-      showTransientMessage("A aposta ficou guardada, mas a atualização do painel falhou.", "warning", 5000);
+      showTransientMessage("A aposta ficou guardada, mas a atualização das sugestões falhou.", "warning", 5000);
     }
   });
 }
@@ -1264,7 +1268,6 @@ async function handleBetSubmit(event) {
 
     resetBetForm();
     setMessage(successMessage);
-    queuePostSaveRefresh(payload);
     return;
   } catch (error) {
     if (elements.entryModal.classList.contains("hidden")) {
