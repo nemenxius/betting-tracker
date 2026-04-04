@@ -130,6 +130,22 @@ function clearNotice(target) {
   target.classList.remove("warning");
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId = null;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+  });
+}
+
 function setMessage(message, tone = "info") {
   setNotice(elements.messageBox, message, tone);
 }
@@ -1011,16 +1027,22 @@ async function fetchSuggestions() {
 async function syncSuggestion(table, value) {
   const cleanValue = String(value || "").trim();
   if (!cleanValue) {
-    return;
+    return { ok: true };
   }
 
-  const { error } = await supabaseClient
-    .from(table)
-    .upsert({ name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true });
+  const { error } = await withTimeout(
+    supabaseClient
+      .from(table)
+      .upsert({ name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true }),
+    8000,
+    `A lista de sugestões para ${table} demorou demasiado tempo.`
+  );
 
   if (error) {
-    setMessage(error.message, "warning");
+    return { ok: false, message: error.message };
   }
+
+  return { ok: true };
 }
 
 async function handleAuthSubmit(event) {
@@ -1086,6 +1108,7 @@ async function handleBetSubmit(event) {
 
   elements.saveBetButton.disabled = true;
   elements.saveBetButton.textContent = editingBetId ? "A atualizar..." : "A guardar...";
+  setEntryMessage("A guardar aposta...");
 
   try {
     const successMessage = editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.";
@@ -1112,7 +1135,11 @@ async function handleBetSubmit(event) {
       ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
       : supabaseClient.from("bets").insert(payload);
 
-    const { error } = await query;
+    const { error } = await withTimeout(
+      query,
+      12000,
+      "A ligação à base de dados demorou demasiado tempo. Tenta novamente."
+    );
 
     if (error) {
       setEntryMessage(error.message, "warning");
@@ -1120,19 +1147,34 @@ async function handleBetSubmit(event) {
       return;
     }
 
-    await Promise.all([
+    const suggestionResults = await Promise.allSettled([
       syncSuggestion("tipsters", payload.tipster),
       syncSuggestion("bookies", payload.bookie),
       syncSuggestion("sports", payload.sport)
     ]);
 
+    const failedSuggestion = suggestionResults.find((result) =>
+      result.status === "rejected" ||
+      (result.status === "fulfilled" && result.value && result.value.ok === false)
+    );
+
     resetBetForm();
     setMessage(successMessage);
-    await fetchSuggestions();
-    await fetchBets();
+    await Promise.all([
+      withTimeout(fetchSuggestions(), 10000, "As sugestões demoraram demasiado tempo a atualizar."),
+      withTimeout(fetchBets(), 10000, "O histórico demorou demasiado tempo a atualizar.")
+    ]);
+
+    if (failedSuggestion) {
+      showTransientMessage("A aposta ficou guardada, mas a atualização das sugestões falhou.", "warning", 5000);
+    }
     return;
   } catch (error) {
-    setEntryMessage(error.message || "Ocorreu um erro ao guardar a aposta.", "warning");
+    if (elements.entryModal.classList.contains("hidden")) {
+      setMessage(error.message || "Ocorreu um erro ao atualizar a app após guardar a aposta.", "warning");
+    } else {
+      setEntryMessage(error.message || "Ocorreu um erro ao guardar a aposta.", "warning");
+    }
     return;
   } finally {
     elements.saveBetButton.disabled = false;
