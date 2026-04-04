@@ -820,6 +820,35 @@ function queuePostSaveRefresh(payload) {
   });
 }
 
+function upsertLocalBet(payload, savedId) {
+  const savedBet = {
+    id: savedId ?? editingBetId ?? `temp-${Date.now()}`,
+    ...payload,
+    created_at: new Date().toISOString()
+  };
+
+  if (editingBetId) {
+    bets = bets.map((bet) => (String(bet.id) === String(editingBetId) ? { ...bet, ...savedBet } : bet));
+  } else {
+    bets = [savedBet, ...bets];
+  }
+
+  if (payload.tipster && !hasKnownSuggestion(suggestions.tipsters, payload.tipster)) {
+    suggestions.tipsters = suggestions.tipsters.concat(payload.tipster);
+  }
+
+  if (payload.bookie && !hasKnownSuggestion(suggestions.bookies, payload.bookie)) {
+    suggestions.bookies = suggestions.bookies.concat(payload.bookie);
+  }
+
+  if (payload.sport && !hasKnownSuggestion(suggestions.sports, payload.sport)) {
+    suggestions.sports = suggestions.sports.concat(payload.sport);
+  }
+
+  updateAutocompleteOptions();
+  renderBets();
+}
+
 function updateStats(sourceBets) {
   const resolvedBets = sourceBets.filter((bet) => bet.status !== "pending");
   const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
@@ -1120,13 +1149,9 @@ async function syncSuggestion(table, value) {
     return { ok: false, message: "Sessão inválida para atualizar sugestões." };
   }
 
-  const { error } = await withTimeout(
-    supabaseClient
-      .from(table)
-      .upsert({ user_id: currentUser.id, name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true }),
-    8000,
-    `A lista de sugestões para ${table} demorou demasiado tempo.`
-  );
+  const { error } = await supabaseClient
+    .from(table)
+    .upsert({ user_id: currentUser.id, name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true });
 
   if (error) {
     return { ok: false, message: error.message };
@@ -1224,14 +1249,10 @@ async function handleBetSubmit(event) {
     };
 
     const query = editingBetId
-      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId).select("id").single()
-      : supabaseClient.from("bets").insert([payload]).select("id").single();
+      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
+      : supabaseClient.from("bets").insert(payload);
 
-    const { data, error } = await withTimeout(
-      query,
-      12000,
-      "A ligação à base de dados demorou demasiado tempo. Tenta novamente."
-    );
+    const { error } = await query;
 
     if (error) {
       setEntryMessage(error.message, "warning");
@@ -1239,32 +1260,7 @@ async function handleBetSubmit(event) {
       return;
     }
 
-    const savedBet = {
-      id: data?.id ?? `temp-${Date.now()}`,
-      ...payload,
-      created_at: new Date().toISOString()
-    };
-
-    if (editingBetId) {
-      bets = bets.map((bet) => (String(bet.id) === String(editingBetId) ? { ...bet, ...savedBet } : bet));
-    } else {
-      bets = [savedBet, ...bets];
-    }
-
-    if (payload.tipster && !hasKnownSuggestion(suggestions.tipsters, payload.tipster)) {
-      suggestions.tipsters = suggestions.tipsters.concat(payload.tipster);
-    }
-
-    if (payload.bookie && !hasKnownSuggestion(suggestions.bookies, payload.bookie)) {
-      suggestions.bookies = suggestions.bookies.concat(payload.bookie);
-    }
-
-    if (payload.sport && !hasKnownSuggestion(suggestions.sports, payload.sport)) {
-      suggestions.sports = suggestions.sports.concat(payload.sport);
-    }
-
-    updateAutocompleteOptions();
-    renderBets();
+    upsertLocalBet(payload);
 
     resetBetForm();
     setMessage(successMessage);
