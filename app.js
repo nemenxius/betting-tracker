@@ -637,6 +637,7 @@ function mapImportedRow(row) {
   const profit = row["P/L"] === "" ? calculateProfit(stake, odds, status, payout) : Number(row["P/L"]);
 
   return {
+    user_id: currentUser ? currentUser.id : null,
     tipster: row.Tipster || null,
     bookie: row.Bookie || null,
     sport: row.Sport || null,
@@ -1030,10 +1031,14 @@ async function syncSuggestion(table, value) {
     return { ok: true };
   }
 
+  if (!currentUser) {
+    return { ok: false, message: "Sessão inválida para atualizar sugestões." };
+  }
+
   const { error } = await withTimeout(
     supabaseClient
       .from(table)
-      .upsert({ name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true }),
+      .upsert({ user_id: currentUser.id, name: cleanValue }, { onConflict: "user_id,name", ignoreDuplicates: true }),
     8000,
     `A lista de sugestões para ${table} demorou demasiado tempo.`
   );
@@ -1116,6 +1121,7 @@ async function handleBetSubmit(event) {
     const profit = calculateProfit(stake, odds, status, settlementReturn);
 
     const payload = {
+      user_id: currentUser.id,
       tipster: elements.tipster.value.trim() || null,
       bookie: elements.bookie.value.trim() || null,
       sport: elements.sport.value.trim() || null,
@@ -1132,8 +1138,8 @@ async function handleBetSubmit(event) {
     };
 
     const query = editingBetId
-      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
-      : supabaseClient.from("bets").insert(payload);
+      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId).select("id").single()
+      : supabaseClient.from("bets").insert([payload]).select("id").single();
 
     const { error } = await withTimeout(
       query,
