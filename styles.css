@@ -89,11 +89,17 @@ body {
   padding: 8px 10px;
 }
 
+.stats-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .stats-toolbar {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-bottom: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 10px;
 }
 
@@ -158,6 +164,69 @@ body {
 .stat-pending {
   border-color: rgba(240, 201, 106, 0.24);
   background: linear-gradient(180deg, rgba(240, 201, 106, 0.07), rgba(17, 22, 30, 0.92));
+}
+
+.stats-chart-card {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
+
+.stats-chart-header {
+  margin-bottom: 0;
+}
+
+.chart-current-value {
+  align-self: end;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.profit-chart {
+  width: 100%;
+  height: 170px;
+  display: block;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    radial-gradient(circle at top, rgba(71, 193, 144, 0.12), transparent 55%);
+  overflow: visible;
+}
+
+.profit-chart-area {
+  fill: rgba(71, 193, 144, 0.14);
+}
+
+.profit-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profit-chart-zero {
+  fill: none;
+  stroke: rgba(147, 161, 181, 0.28);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+
+.profit-chart-point {
+  fill: #fff7f2;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.chart-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .eyebrow {
@@ -465,14 +534,22 @@ button:hover {
 }
 
 @media (max-width: 1200px) {
+  .stats-board {
+    grid-template-columns: 1.35fr 0.95fr;
+  }
+
   .stats-toolbar {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
   .topbar,
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-board {
     grid-template-columns: 1fr;
   }
 
@@ -492,6 +569,7 @@ button:hover {
   }
 
   .stats-toolbar,
+  .stats-chart-card,
   .auth-card,
   .form-card,
   .filters-card {
@@ -509,6 +587,10 @@ button:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .profit-chart {
+    height: 150px;
+  }
+
   .import-actions {
     align-items: stretch;
   }
@@ -521,5 +603,10 @@ button:hover {
 @media (max-width: 480px) {
   .stats-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .chart-meta {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

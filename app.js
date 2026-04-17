@@ -76,13 +76,20 @@ const elements = {
   statProfitAmount: document.querySelector("#stat-profit-amount"),
   statRoi: document.querySelector("#stat-roi"),
   statAverageOdds: document.querySelector("#stat-average-odds"),
-  statTotalStake: document.querySelector("#stat-total-stake"),
-  statTotalStakeAmount: document.querySelector("#stat-total-stake-amount"),
   statWon: document.querySelector("#stat-won"),
   statLost: document.querySelector("#stat-lost"),
   statVoid: document.querySelector("#stat-void"),
   statCashout: document.querySelector("#stat-cashout"),
-  statPending: document.querySelector("#stat-pending")
+  statPending: document.querySelector("#stat-pending"),
+  profitChart: document.querySelector("#profit-chart"),
+  profitChartArea: document.querySelector("#profit-chart-area"),
+  profitChartZero: document.querySelector("#profit-chart-zero"),
+  profitChartLine: document.querySelector("#profit-chart-line"),
+  profitChartPoints: document.querySelector("#profit-chart-points"),
+  chartCurrentValue: document.querySelector("#chart-current-value"),
+  chartStartLabel: document.querySelector("#chart-start-label"),
+  chartRangeLabel: document.querySelector("#chart-range-label"),
+  chartEndLabel: document.querySelector("#chart-end-label")
 };
 
 const defaultDate = new Date().toISOString().split("T")[0];
@@ -344,6 +351,88 @@ function normalizeAmountFields(bet) {
     stake_amount: normalizedStakeAmount,
     profit_amount: normalizedProfitAmount
   };
+}
+
+function buildProfitAmountTimeline(sourceBets) {
+  const grouped = sourceBets
+    .filter((bet) => hasNumericValue(bet.profit_amount) && bet.bet_date)
+    .sort((left, right) => String(left.bet_date).localeCompare(String(right.bet_date)))
+    .reduce((accumulator, bet) => {
+      const key = String(bet.bet_date);
+      const currentValue = accumulator.get(key) || 0;
+      accumulator.set(key, currentValue + Number(bet.profit_amount));
+      return accumulator;
+    }, new Map());
+
+  let cumulative = 0;
+  return [...grouped.entries()].map(([date, dailyProfit]) => {
+    cumulative += dailyProfit;
+    return {
+      date,
+      value: Number(cumulative.toFixed(2))
+    };
+  });
+}
+
+function buildChartPath(points) {
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+}
+
+function renderProfitChart(sourceBets) {
+  const chartWidth = 320;
+  const chartHeight = 170;
+  const padding = { top: 16, right: 12, bottom: 22, left: 12 };
+  const timeline = buildProfitAmountTimeline(sourceBets);
+
+  if (!timeline.length) {
+    elements.profitChartArea.setAttribute("d", "");
+    elements.profitChartLine.setAttribute("d", "");
+    elements.profitChartZero.setAttribute("d", `M ${padding.left} ${chartHeight / 2} L ${chartWidth - padding.right} ${chartHeight / 2}`);
+    elements.profitChartPoints.innerHTML = "";
+    elements.chartCurrentValue.textContent = "-";
+    elements.chartStartLabel.textContent = "-";
+    elements.chartRangeLabel.textContent = "Sem dados em EUR";
+    elements.chartEndLabel.textContent = "-";
+    return;
+  }
+
+  const values = timeline.map((entry) => entry.value);
+  const minValue = Math.min(...values, 0);
+  const maxValue = Math.max(...values, 0);
+  const range = maxValue - minValue || 1;
+  const innerWidth = chartWidth - padding.left - padding.right;
+  const innerHeight = chartHeight - padding.top - padding.bottom;
+  const toX = (index) => padding.left + ((timeline.length === 1 ? 0.5 : index / (timeline.length - 1)) * innerWidth);
+  const toY = (value) => padding.top + ((maxValue - value) / range) * innerHeight;
+  const zeroY = toY(0);
+  const points = timeline.map((entry, index) => ({
+    x: toX(index),
+    y: toY(entry.value),
+    value: entry.value,
+    date: entry.date
+  }));
+  const linePath = buildChartPath(points);
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+
+  elements.profitChartArea.setAttribute("d", areaPath);
+  elements.profitChartLine.setAttribute("d", linePath);
+  elements.profitChartZero.setAttribute("d", `M ${padding.left} ${zeroY.toFixed(2)} L ${chartWidth - padding.right} ${zeroY.toFixed(2)}`);
+  elements.profitChartPoints.innerHTML = points
+    .map((point) => (
+      `<circle class="profit-chart-point" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="3.5">
+        <title>${formatDate(point.date)}: ${formatCurrency(point.value)}</title>
+      </circle>`
+    ))
+    .join("");
+
+  const firstEntry = timeline[0];
+  const lastEntry = timeline[timeline.length - 1];
+  elements.chartCurrentValue.textContent = formatCurrency(lastEntry.value);
+  elements.chartStartLabel.textContent = formatDate(firstEntry.date);
+  elements.chartRangeLabel.textContent = timeline.length === 1
+    ? "1 ponto com lucro real"
+    : `${timeline.length} pontos acumulados`;
+  elements.chartEndLabel.textContent = formatDate(lastEntry.date);
 }
 
 function validateBetForm() {
@@ -950,9 +1039,7 @@ function updateStats(sourceBets) {
   const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
   const totalStake = sourceBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
   const betsWithProfitAmount = sourceBets.filter((bet) => hasNumericValue(bet.profit_amount));
-  const betsWithStakeAmount = sourceBets.filter((bet) => hasNumericValue(bet.stake_amount));
   const totalProfitAmount = betsWithProfitAmount.reduce((sum, bet) => sum + Number(bet.profit_amount || 0), 0);
-  const totalStakeAmount = betsWithStakeAmount.reduce((sum, bet) => sum + Number(bet.stake_amount || 0), 0);
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
   const averageOdds = sourceBets.length
     ? sourceBets.reduce((sum, bet) => sum + Number(bet.odds || 0), 0) / sourceBets.length
@@ -968,13 +1055,12 @@ function updateStats(sourceBets) {
   elements.statProfitAmount.textContent = betsWithProfitAmount.length ? formatCurrency(totalProfitAmount) : "-";
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
   elements.statAverageOdds.textContent = averageOdds.toFixed(2);
-  elements.statTotalStake.textContent = formatUnits(totalStake);
-  elements.statTotalStakeAmount.textContent = betsWithStakeAmount.length ? formatCurrency(totalStakeAmount) : "-";
   elements.statWon.textContent = String(wins);
   elements.statLost.textContent = String(losses);
   elements.statVoid.textContent = String(voids);
   elements.statCashout.textContent = String(cashouts);
   elements.statPending.textContent = String(pending);
+  renderProfitChart(sourceBets);
 }
 
 function updatePagination(totalItems) {

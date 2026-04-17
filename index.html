@@ -40,17 +40,39 @@
       </div>
     </section>
 
-    <section class="stats-toolbar card">
-      <div class="stat-pill"><small>Total</small><strong id="stat-total">0</strong></div>
-      <div class="stat-pill stat-profit"><small>Lucro</small><strong id="stat-profit">0.00u</strong><span id="stat-profit-amount" class="stat-secondary">EUR 0.00</span></div>
-      <div class="stat-pill"><small>ROI</small><strong id="stat-roi">0%</strong></div>
-      <div class="stat-pill"><small>Odds</small><strong id="stat-average-odds">0.00</strong></div>
-      <div class="stat-pill"><small>Stake</small><strong id="stat-total-stake">0.00u</strong><span id="stat-total-stake-amount" class="stat-secondary">EUR 0.00</span></div>
-      <div class="stat-pill stat-won"><small>Won</small><strong id="stat-won">0</strong></div>
-      <div class="stat-pill stat-lost"><small>Lost</small><strong id="stat-lost">0</strong></div>
-      <div class="stat-pill stat-void"><small>Void</small><strong id="stat-void">0</strong></div>
-      <div class="stat-pill stat-cashout"><small>Cashout</small><strong id="stat-cashout">0</strong></div>
-      <div class="stat-pill stat-pending"><small>Pending</small><strong id="stat-pending">0</strong></div>
+    <section class="stats-board">
+      <div class="stats-toolbar card">
+        <div class="stat-pill"><small>Total</small><strong id="stat-total">0</strong></div>
+        <div class="stat-pill stat-profit"><small>Lucro</small><strong id="stat-profit">0.00u</strong><span id="stat-profit-amount" class="stat-secondary">EUR 0.00</span></div>
+        <div class="stat-pill"><small>ROI</small><strong id="stat-roi">0%</strong></div>
+        <div class="stat-pill"><small>Odds</small><strong id="stat-average-odds">0.00</strong></div>
+        <div class="stat-pill stat-won"><small>Won</small><strong id="stat-won">0</strong></div>
+        <div class="stat-pill stat-lost"><small>Lost</small><strong id="stat-lost">0</strong></div>
+        <div class="stat-pill stat-void"><small>Void</small><strong id="stat-void">0</strong></div>
+        <div class="stat-pill stat-cashout"><small>Cashout</small><strong id="stat-cashout">0</strong></div>
+        <div class="stat-pill stat-pending"><small>Pending</small><strong id="stat-pending">0</strong></div>
+      </div>
+
+      <section class="card stats-chart-card">
+        <div class="section-heading stats-chart-header">
+          <div>
+            <p class="eyebrow">Performance</p>
+            <h2>EUR ao longo do tempo</h2>
+          </div>
+          <strong id="chart-current-value" class="chart-current-value">-</strong>
+        </div>
+        <svg id="profit-chart" class="profit-chart" viewBox="0 0 320 170" role="img" aria-label="Grafico da evolucao do lucro em euros">
+          <path id="profit-chart-area" class="profit-chart-area" d=""></path>
+          <path id="profit-chart-zero" class="profit-chart-zero" d=""></path>
+          <path id="profit-chart-line" class="profit-chart-line" d=""></path>
+          <g id="profit-chart-points"></g>
+        </svg>
+        <div class="chart-meta">
+          <span id="chart-start-label">-</span>
+          <span id="chart-range-label">Sem dados em EUR</span>
+          <span id="chart-end-label">-</span>
+        </div>
+      </section>
     </section>
 
     <section class="card filters-card">
