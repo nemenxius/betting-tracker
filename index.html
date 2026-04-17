@@ -42,10 +42,10 @@
 
     <section class="stats-toolbar card">
       <div class="stat-pill"><small>Total</small><strong id="stat-total">0</strong></div>
-      <div class="stat-pill stat-profit"><small>Lucro</small><strong id="stat-profit">0.00u</strong></div>
+      <div class="stat-pill stat-profit"><small>Lucro</small><strong id="stat-profit">0.00u</strong><span id="stat-profit-amount" class="stat-secondary">EUR 0.00</span></div>
       <div class="stat-pill"><small>ROI</small><strong id="stat-roi">0%</strong></div>
       <div class="stat-pill"><small>Odds</small><strong id="stat-average-odds">0.00</strong></div>
-      <div class="stat-pill"><small>Stake</small><strong id="stat-total-stake">0.00u</strong></div>
+      <div class="stat-pill"><small>Stake</small><strong id="stat-total-stake">0.00u</strong><span id="stat-total-stake-amount" class="stat-secondary">EUR 0.00</span></div>
       <div class="stat-pill stat-won"><small>Won</small><strong id="stat-won">0</strong></div>
       <div class="stat-pill stat-lost"><small>Lost</small><strong id="stat-lost">0</strong></div>
       <div class="stat-pill stat-void"><small>Void</small><strong id="stat-void">0</strong></div>
@@ -200,7 +200,7 @@
           <span>Mercado</span>
           <input id="market-name" type="text" placeholder="Mais de 2.5 golos" required>
         </label>
-        <div class="inline-fields">
+        <div class="inline-fields inline-fields-3">
           <label>
             <span>Data</span>
             <input id="bet-date" type="date" required>
@@ -214,6 +214,10 @@
           <label>
             <span>Stake (u)</span>
             <input id="stake" type="number" min="0" step="0.01" placeholder="10.00" required>
+          </label>
+          <label>
+            <span>Stake real (EUR)</span>
+            <input id="stake-amount" type="number" min="0" step="0.01" placeholder="50.00">
           </label>
           <label>
             <span>Odds</span>

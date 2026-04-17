@@ -122,6 +122,14 @@ body {
   line-height: 1;
 }
 
+.stat-secondary {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .stat-profit {
   border-color: rgba(71, 193, 144, 0.3);
   background: linear-gradient(180deg, rgba(71, 193, 144, 0.08), rgba(17, 22, 30, 0.92));

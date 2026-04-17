@@ -50,6 +50,7 @@ const elements = {
   betType: document.querySelector("#bet-type"),
   betDate: document.querySelector("#bet-date"),
   stake: document.querySelector("#stake"),
+  stakeAmount: document.querySelector("#stake-amount"),
   odds: document.querySelector("#odds"),
   status: document.querySelector("#status"),
   settlementField: document.querySelector("#settlement-field"),
@@ -72,9 +73,11 @@ const elements = {
   sortBy: document.querySelector("#sort-by"),
   statTotal: document.querySelector("#stat-total"),
   statProfit: document.querySelector("#stat-profit"),
+  statProfitAmount: document.querySelector("#stat-profit-amount"),
   statRoi: document.querySelector("#stat-roi"),
   statAverageOdds: document.querySelector("#stat-average-odds"),
   statTotalStake: document.querySelector("#stat-total-stake"),
+  statTotalStakeAmount: document.querySelector("#stat-total-stake-amount"),
   statWon: document.querySelector("#stat-won"),
   statLost: document.querySelector("#stat-lost"),
   statVoid: document.querySelector("#stat-void"),
@@ -257,6 +260,17 @@ function formatUnits(value) {
   return `${Number(value || 0).toFixed(2)}u`;
 }
 
+function formatCurrency(value) {
+  if (!Number.isFinite(Number(value))) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("pt-PT", {
+    style: "currency",
+    currency: "EUR"
+  }).format(Number(value));
+}
+
 function formatStatus(status) {
   const labels = {
     pending: "Pendente",
@@ -284,6 +298,37 @@ function parseNumericInput(value) {
   return Number(normalized);
 }
 
+function parseOptionalNumericInput(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const numericValue = parseNumericInput(normalized);
+  return Number.isNaN(numericValue) ? Number.NaN : numericValue;
+}
+
+function calculateProfitAmount(stakeUnits, profitUnits, stakeAmount) {
+  const numericStakeUnits = Number(stakeUnits);
+  const numericProfitUnits = Number(profitUnits);
+  const numericStakeAmount = Number(stakeAmount);
+
+  if (!Number.isFinite(numericStakeAmount)) {
+    return null;
+  }
+
+  if (!Number.isFinite(numericStakeUnits) || numericStakeUnits <= 0) {
+    return Number(numericProfitUnits.toFixed(2));
+  }
+
+  if (!Number.isFinite(numericProfitUnits)) {
+    return null;
+  }
+
+  const unitValue = numericStakeAmount / numericStakeUnits;
+  return Number((numericProfitUnits * unitValue).toFixed(2));
+}
+
 function validateBetForm() {
   if (!elements.eventName.value.trim()) {
     return "Preenche o evento.";
@@ -305,6 +350,11 @@ function validateBetForm() {
   const odds = parseNumericInput(elements.odds.value);
   if (Number.isNaN(odds) || odds < 1) {
     return "Indica odds válidas.";
+  }
+
+  const stakeAmount = parseOptionalNumericInput(elements.stakeAmount.value);
+  if (Number.isNaN(stakeAmount) || stakeAmount < 0) {
+    return "Indica uma stake real valida em euros.";
   }
 
   if (requiresSettlement(elements.status.value)) {
@@ -699,10 +749,15 @@ function mapImportedRow(row) {
   const marketName = row.Bet || "";
   const status = normalizeImportedStatus(row.Result);
   const stake = parseImportedNumber(row, ["Stake (u)", "Stake"], 0);
+  const stakeAmount = parseImportedNumber(row, ["Stake (€)", "Stake Amount", "Stake Money"], null);
   const odds = parseImportedNumber(row, ["Odds"], 0);
   const payout = parseImportedNumber(row, ["Payout"], null);
-  const importedProfit = parseImportedNumber(row, ["P/L (u)", "P/L", "P/L (€)"], Number.NaN);
+  const importedProfit = parseImportedNumber(row, ["P/L (u)", "P/L"], Number.NaN);
+  const importedProfitAmount = parseImportedNumber(row, ["P/L (€)", "Profit (€)", "Profit Amount"], Number.NaN);
   const profit = Number.isFinite(importedProfit) ? importedProfit : calculateProfit(stake, odds, status, payout);
+  const profitAmount = Number.isFinite(importedProfitAmount)
+    ? importedProfitAmount
+    : calculateProfitAmount(stake, profit, stakeAmount);
 
   return {
     user_id: currentUser ? currentUser.id : null,
@@ -714,10 +769,12 @@ function mapImportedRow(row) {
     bet_type: row.Type || deriveBetType(marketName),
     bet_date: parsePtDateToIso(row.Date),
     stake,
+    stake_amount: stakeAmount,
     odds,
     status,
     settlement_return: status === "cashout" || status === "partial_void" ? payout : null,
     profit,
+    profit_amount: profitAmount,
     notes: null
   };
 }
@@ -873,9 +930,12 @@ function upsertLocalBet(payload, savedId) {
 }
 
 function updateStats(sourceBets) {
-  const resolvedBets = sourceBets.filter((bet) => bet.status !== "pending");
   const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
   const totalStake = sourceBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+  const betsWithProfitAmount = sourceBets.filter((bet) => Number.isFinite(Number(bet.profit_amount)));
+  const betsWithStakeAmount = sourceBets.filter((bet) => Number.isFinite(Number(bet.stake_amount)));
+  const totalProfitAmount = betsWithProfitAmount.reduce((sum, bet) => sum + Number(bet.profit_amount || 0), 0);
+  const totalStakeAmount = betsWithStakeAmount.reduce((sum, bet) => sum + Number(bet.stake_amount || 0), 0);
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
   const averageOdds = sourceBets.length
     ? sourceBets.reduce((sum, bet) => sum + Number(bet.odds || 0), 0) / sourceBets.length
@@ -888,9 +948,11 @@ function updateStats(sourceBets) {
 
   elements.statTotal.textContent = String(sourceBets.length);
   elements.statProfit.textContent = formatUnits(totalProfit);
+  elements.statProfitAmount.textContent = betsWithProfitAmount.length ? formatCurrency(totalProfitAmount) : "-";
   elements.statRoi.textContent = `${roi.toFixed(1)}%`;
   elements.statAverageOdds.textContent = averageOdds.toFixed(2);
   elements.statTotalStake.textContent = formatUnits(totalStake);
+  elements.statTotalStakeAmount.textContent = betsWithStakeAmount.length ? formatCurrency(totalStakeAmount) : "-";
   elements.statWon.textContent = String(wins);
   elements.statLost.textContent = String(losses);
   elements.statVoid.textContent = String(voids);
@@ -920,6 +982,7 @@ function resetBetForm() {
   elements.betDate.value = defaultDate;
   elements.status.value = "pending";
   elements.betType.value = "";
+  elements.stakeAmount.value = "";
   elements.settlementReturn.value = "";
   updateSettlementVisibility();
   clearEntryMessage();
@@ -943,6 +1006,7 @@ function startEditingBet(betId) {
   elements.betType.value = bet.bet_type || deriveBetType(bet.market_name);
   elements.betDate.value = bet.bet_date || defaultDate;
   elements.stake.value = bet.stake ?? "";
+  elements.stakeAmount.value = bet.stake_amount ?? "";
   elements.odds.value = bet.odds ?? "";
   elements.status.value = bet.status || "pending";
   elements.settlementReturn.value = bet.settlement_return ?? "";
@@ -1024,6 +1088,14 @@ function renderBets() {
     .map((bet) => {
       const profitClass = Number(bet.profit) >= 0 ? "status-won" : "status-lost";
       const notes = bet.notes ? `<p>${escapeHtml(bet.notes)}</p>` : "";
+      const stakeAmountTag = Number.isFinite(Number(bet.stake_amount))
+        ? `<span>Stake real: ${formatCurrency(bet.stake_amount)}</span>`
+        : "";
+      const profitAmountTag = bet.status === "pending"
+        ? ""
+        : Number.isFinite(Number(bet.profit_amount))
+          ? `<span class="${profitClass}">Lucro real: ${formatCurrency(bet.profit_amount)}</span>`
+          : "";
 
       return `
         <article class="bet-item">
@@ -1041,8 +1113,10 @@ function renderBets() {
             <span>${escapeHtml(bet.sport || "Sem sport")}</span>
             <span>${escapeHtml(bet.bet_type || "Other")}</span>
             <span>Stake: ${formatUnits(bet.stake)}</span>
+            ${stakeAmountTag}
             <span>Odds: ${Number(bet.odds).toFixed(2)}</span>
             <span class="${profitClass}">Lucro: ${bet.status === "pending" ? "-" : formatUnits(bet.profit)}</span>
+            ${profitAmountTag}
           </div>
           ${notes}
           <div class="bet-item-actions">
@@ -1128,7 +1202,9 @@ async function fetchBets() {
   bets = bets.map((bet) => ({
     ...bet,
     bookie: bet.bookie || bet.bookmaker || null,
-    bet_type: bet.bet_type || deriveBetType(bet.market_name)
+    bet_type: bet.bet_type || deriveBetType(bet.market_name),
+    stake_amount: bet.stake_amount == null ? null : Number(bet.stake_amount),
+    profit_amount: bet.profit_amount == null ? null : Number(bet.profit_amount)
   }));
   updateAutocompleteOptions();
   renderBets();
@@ -1237,6 +1313,7 @@ async function handleBetSubmit(event) {
 
   const status = elements.status.value;
   const stake = parseNumericInput(elements.stake.value);
+  const stakeAmount = parseOptionalNumericInput(elements.stakeAmount.value);
   const odds = parseNumericInput(elements.odds.value);
   const settlementReturn = requiresSettlement(status) ? parseNumericInput(elements.settlementReturn.value) : null;
 
@@ -1253,6 +1330,7 @@ async function handleBetSubmit(event) {
     const successMessage = editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.";
     const nextButtonLabel = editingBetId ? "Atualizar aposta" : "Guardar aposta";
     const profit = calculateProfit(stake, odds, status, settlementReturn);
+    const profitAmount = calculateProfitAmount(stake, profit, stakeAmount);
 
     const payload = {
       user_id: currentUser.id,
@@ -1264,10 +1342,12 @@ async function handleBetSubmit(event) {
       bet_type: deriveBetType(elements.marketName.value),
       bet_date: elements.betDate.value,
       stake,
+      stake_amount: stakeAmount,
       odds,
       status,
       settlement_return: settlementReturn,
       profit,
+      profit_amount: profitAmount,
       notes: elements.notes.value.trim() || null
     };
 
@@ -1345,10 +1425,12 @@ async function handleBetListClick(event) {
       settlementReturn = null;
     }
 
+    const nextProfit = calculateProfit(bet.stake, bet.odds, nextStatus, settlementReturn);
     const payload = {
       status: nextStatus,
       settlement_return: settlementReturn,
-      profit: calculateProfit(bet.stake, bet.odds, nextStatus, settlementReturn)
+      profit: nextProfit,
+      profit_amount: calculateProfitAmount(bet.stake, nextProfit, bet.stake_amount)
     };
 
     const { error } = await supabaseClient.from("bets").update(payload).eq("id", id);
