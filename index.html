@@ -33,6 +33,8 @@
 
       <div id="user-panel" class="user-panel hidden topbar-user">
         <p>Ligado como <strong id="user-email"></strong></p>
+        <button id="open-dashboard-page-button" class="ghost-button" type="button">Registos</button>
+        <button id="open-chart-page-button" class="ghost-button" type="button">Grafico EUR</button>
         <button id="open-entry-button" class="ghost-button" type="button">Nova aposta</button>
         <button id="open-ocr-button" class="ghost-button" type="button">Ler imagem</button>
         <button id="open-import-button" class="ghost-button" type="button">Importar</button>
@@ -40,7 +42,7 @@
       </div>
     </section>
 
-    <section class="stats-board">
+    <section id="dashboard-view" class="page-view">
       <div class="stats-toolbar card">
         <div class="stat-pill"><small>Total</small><strong id="stat-total">0</strong></div>
         <div class="stat-pill stat-profit"><small>Lucro</small><strong id="stat-profit">0.00u</strong><span id="stat-profit-amount" class="stat-secondary">EUR 0.00</span></div>
@@ -53,7 +55,95 @@
         <div class="stat-pill stat-pending"><small>Pending</small><strong id="stat-pending">0</strong></div>
       </div>
 
-      <section class="card stats-chart-card">
+      <section class="card filters-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Histórico</p>
+            <h2>As tuas apostas</h2>
+          </div>
+        </div>
+
+        <div class="inline-fields">
+          <label>
+            <span>Filtrar por estado</span>
+            <select id="filter-status">
+              <option value="all">Todos</option>
+              <option value="pending">Pendente</option>
+              <option value="won">Ganha</option>
+              <option value="lost">Perdida</option>
+              <option value="void">Void</option>
+            </select>
+          </label>
+          <label>
+            <span>Pesquisar</span>
+            <input id="filter-query" type="search" placeholder="Evento, mercado, casa...">
+          </label>
+        </div>
+
+        <div class="inline-fields">
+          <label>
+            <span>Mês</span>
+            <input id="filter-month" type="month">
+          </label>
+          <label>
+            <span>Ordenar</span>
+            <select id="sort-by">
+              <option value="date_desc">Data mais recente</option>
+              <option value="date_asc">Data mais antiga</option>
+              <option value="profit_desc">Lucro maior</option>
+              <option value="profit_asc">Lucro menor</option>
+              <option value="stake_desc">Stake maior</option>
+              <option value="stake_asc">Stake menor</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="inline-fields inline-fields-3">
+          <label>
+            <span>Tipster</span>
+            <input id="filter-tipster" type="search" placeholder="Todos" list="tipster-options">
+          </label>
+          <label>
+            <span>Bookie</span>
+            <input id="filter-bookie" type="search" placeholder="Todos" list="bookie-options">
+          </label>
+          <label>
+            <span>Sport</span>
+            <input id="filter-sport" type="search" placeholder="Todos" list="sport-options">
+          </label>
+        </div>
+
+        <div class="inline-fields">
+          <label>
+            <span>Bet type</span>
+            <select id="filter-bet-type">
+              <option value="all">Todos</option>
+              <option value="Overs">Overs</option>
+              <option value="Unders">Unders</option>
+              <option value="BTTS NO">BTTS NO</option>
+              <option value="BTTS YES">BTTS YES</option>
+              <option value="Result">Result</option>
+              <option value="Handicap">Handicap</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <div></div>
+        </div>
+
+        <div id="message-box" class="notice hidden"></div>
+        <div id="bets-list" class="bets-list empty-state">
+          Inicia sessão para veres e criares registos.
+        </div>
+        <div id="pagination" class="pagination hidden">
+          <button id="prev-page-button" class="ghost-button" type="button">Anterior</button>
+          <span id="page-indicator">Página 1 de 1</span>
+          <button id="next-page-button" class="ghost-button" type="button">Seguinte</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="chart-view" class="page-view hidden">
+      <section class="card stats-chart-card standalone-chart-card">
         <div class="section-heading stats-chart-header">
           <div>
             <p class="eyebrow">Performance</p>
@@ -73,92 +163,6 @@
           <span id="chart-end-label">-</span>
         </div>
       </section>
-    </section>
-
-    <section class="card filters-card">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Histórico</p>
-          <h2>As tuas apostas</h2>
-        </div>
-      </div>
-
-      <div class="inline-fields">
-        <label>
-          <span>Filtrar por estado</span>
-          <select id="filter-status">
-            <option value="all">Todos</option>
-            <option value="pending">Pendente</option>
-            <option value="won">Ganha</option>
-            <option value="lost">Perdida</option>
-            <option value="void">Void</option>
-          </select>
-        </label>
-        <label>
-          <span>Pesquisar</span>
-          <input id="filter-query" type="search" placeholder="Evento, mercado, casa...">
-        </label>
-      </div>
-
-      <div class="inline-fields">
-        <label>
-          <span>Mês</span>
-          <input id="filter-month" type="month">
-        </label>
-        <label>
-          <span>Ordenar</span>
-          <select id="sort-by">
-            <option value="date_desc">Data mais recente</option>
-            <option value="date_asc">Data mais antiga</option>
-            <option value="profit_desc">Lucro maior</option>
-            <option value="profit_asc">Lucro menor</option>
-            <option value="stake_desc">Stake maior</option>
-            <option value="stake_asc">Stake menor</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="inline-fields inline-fields-3">
-        <label>
-          <span>Tipster</span>
-          <input id="filter-tipster" type="search" placeholder="Todos" list="tipster-options">
-        </label>
-        <label>
-          <span>Bookie</span>
-          <input id="filter-bookie" type="search" placeholder="Todos" list="bookie-options">
-        </label>
-        <label>
-          <span>Sport</span>
-          <input id="filter-sport" type="search" placeholder="Todos" list="sport-options">
-        </label>
-      </div>
-
-      <div class="inline-fields">
-        <label>
-          <span>Bet type</span>
-          <select id="filter-bet-type">
-            <option value="all">Todos</option>
-            <option value="Overs">Overs</option>
-            <option value="Unders">Unders</option>
-            <option value="BTTS NO">BTTS NO</option>
-            <option value="BTTS YES">BTTS YES</option>
-            <option value="Result">Result</option>
-            <option value="Handicap">Handicap</option>
-            <option value="Other">Other</option>
-          </select>
-        </label>
-        <div></div>
-      </div>
-
-      <div id="message-box" class="notice hidden"></div>
-      <div id="bets-list" class="bets-list empty-state">
-        Inicia sessão para veres e criares registos.
-      </div>
-      <div id="pagination" class="pagination hidden">
-        <button id="prev-page-button" class="ghost-button" type="button">Anterior</button>
-        <span id="page-indicator">Página 1 de 1</span>
-        <button id="next-page-button" class="ghost-button" type="button">Seguinte</button>
-      </div>
     </section>
   </main>
 

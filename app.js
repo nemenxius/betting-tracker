@@ -13,6 +13,10 @@ const elements = {
   authForm: document.querySelector("#auth-form"),
   email: document.querySelector("#auth-email"),
   password: document.querySelector("#auth-password"),
+  dashboardView: document.querySelector("#dashboard-view"),
+  chartView: document.querySelector("#chart-view"),
+  openDashboardPageButton: document.querySelector("#open-dashboard-page-button"),
+  openChartPageButton: document.querySelector("#open-chart-page-button"),
   logoutButton: document.querySelector("#logout-button"),
   openEntryButton: document.querySelector("#open-entry-button"),
   closeEntryButton: document.querySelector("#close-entry-button"),
@@ -108,6 +112,7 @@ let editingBetId = null;
 let currentPage = 1;
 const PAGE_SIZE = 12;
 let pendingOcrPrefill = null;
+let currentPageView = "dashboard";
 
 if (hasValidConfig) {
   supabaseClient = createClient(config.supabaseUrl, config.supabasePublishableKey || config.supabaseAnonKey);
@@ -123,6 +128,15 @@ function disableForms(disabled) {
       field.disabled = disabled;
     });
   });
+}
+
+function setActivePage(pageName) {
+  currentPageView = pageName;
+  const showChart = pageName === "chart";
+  elements.dashboardView.classList.toggle("hidden", showChart);
+  elements.chartView.classList.toggle("hidden", !showChart);
+  elements.openDashboardPageButton.classList.toggle("is-active", !showChart);
+  elements.openChartPageButton.classList.toggle("is-active", showChart);
 }
 
 function setNotice(target, message, tone) {
@@ -1266,6 +1280,7 @@ function setAuthUi(user) {
   if (isLoggedIn) {
     clearAuthMessage();
   } else {
+    setActivePage("dashboard");
     resetBetForm();
     currentPage = 1;
     closeEntryModal();
@@ -1729,6 +1744,8 @@ async function init() {
 
 elements.authForm.addEventListener("submit", handleAuthSubmit);
 elements.logoutButton.addEventListener("click", handleLogout);
+elements.openDashboardPageButton.addEventListener("click", () => setActivePage("dashboard"));
+elements.openChartPageButton.addEventListener("click", () => setActivePage("chart"));
 elements.openEntryButton.addEventListener("click", openEntryModal);
 elements.closeEntryButton.addEventListener("click", closeEntryModal);
 elements.openOcrButton.addEventListener("click", openOcrModal);
