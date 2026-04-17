@@ -293,8 +293,7 @@ h2 {
   position: fixed;
   inset: 0;
   background: rgba(4, 8, 12, 0.72);
-  display: grid;
-  place-items: center;
+  display: block;
   padding: 16px;
   z-index: 20;
   overflow-y: auto;
@@ -304,9 +303,7 @@ h2 {
 .modal-card {
   width: min(520px, 100%);
   padding: 16px;
-  max-height: min(88vh, 820px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  margin: 24px auto;
 }
 
 .ocr-debug {
@@ -631,7 +628,6 @@ button:hover {
 
   .modal-card {
     padding: 14px;
-    max-height: calc(100dvh - 24px);
     border-radius: 18px;
   }
 }
@@ -643,12 +639,11 @@ button:hover {
 
   .modal-overlay {
     padding: 8px;
-    place-items: end stretch;
   }
 
   .modal-card {
     width: 100%;
-    max-height: calc(100dvh - 16px);
+    margin: 8px auto;
   }
 
   .section-heading {
