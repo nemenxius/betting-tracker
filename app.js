@@ -8,6 +8,7 @@ const hasValidConfig =
   !config.supabaseUrl.includes("YOUR_PROJECT_ID") &&
   !(config.supabasePublishableKey || config.supabaseAnonKey).includes("YOUR_SUPABASE") &&
   (config.supabasePublishableKey || config.supabaseAnonKey).trim().length > 20;
+const SUPABASE_REQUEST_TIMEOUT_MS = 12000;
 
 const elements = {
   authForm: document.querySelector("#auth-form"),
@@ -101,6 +102,7 @@ elements.betDate.value = defaultDate;
 
 let supabaseClient = null;
 let currentUser = null;
+let currentSession = null;
 let bets = [];
 let suggestions = {
   tipsters: [],
@@ -113,9 +115,92 @@ let currentPage = 1;
 const PAGE_SIZE = 12;
 let pendingOcrPrefill = null;
 let currentPageView = "dashboard";
+let isSubmittingBet = false;
+
+async function fetchWithAbortTimeout(input, init = {}) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort();
+  }, SUPABASE_REQUEST_TIMEOUT_MS);
+
+  const nextSignal = (
+    init.signal && typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function"
+      ? AbortSignal.any([init.signal, controller.signal])
+      : controller.signal
+  );
+
+  try {
+    return await window.fetch(input, {
+      ...init,
+      signal: nextSignal
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Supabase request timed out.");
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function parseSupabaseRestError(response) {
+  try {
+    const payload = await response.json();
+    return payload?.message || payload?.error_description || payload?.error || `HTTP ${response.status}`;
+  } catch {
+    return `HTTP ${response.status}`;
+  }
+}
+
+function getWriteAuthHeaders() {
+  const apiKey = config.supabasePublishableKey || config.supabaseAnonKey;
+  if (!apiKey) {
+    throw new Error("Chave da Supabase em falta.");
+  }
+
+  if (!currentSession?.access_token) {
+    throw new Error("Sessao indisponivel. Inicia sessao novamente.");
+  }
+
+  return {
+    apikey: apiKey,
+    Authorization: `Bearer ${currentSession.access_token}`,
+    "Content-Type": "application/json",
+    Prefer: "return=minimal"
+  };
+}
+
+async function writeBetRecord(payload, betId) {
+  const url = new URL(`${config.supabaseUrl}/rest/v1/bets`);
+  const method = betId ? "PATCH" : "POST";
+
+  if (betId) {
+    url.searchParams.set("id", `eq.${betId}`);
+  }
+
+  const response = await fetchWithAbortTimeout(url.toString(), {
+    method,
+    headers: getWriteAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseSupabaseRestError(response));
+  }
+}
 
 if (hasValidConfig) {
-  supabaseClient = createClient(config.supabaseUrl, config.supabasePublishableKey || config.supabaseAnonKey);
+  supabaseClient = createClient(
+    config.supabaseUrl,
+    config.supabasePublishableKey || config.supabaseAnonKey,
+    {
+      global: {
+        fetch: fetchWithAbortTimeout
+      }
+    }
+  );
 } else {
   elements.configWarning.classList.remove("hidden");
   setMessage("Preenche o ficheiro config.js antes de usar a app.", "warning");
@@ -152,22 +237,6 @@ function clearNotice(target) {
   target.classList.add("hidden");
   target.textContent = "";
   target.classList.remove("warning");
-}
-
-function withTimeout(promise, timeoutMs, message) {
-  let timeoutId = null;
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = window.setTimeout(() => {
-      reject(new Error(message));
-    }, timeoutMs);
-  });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeoutId !== null) {
-      window.clearTimeout(timeoutId);
-    }
-  });
 }
 
 function setMessage(message, tone = "info") {
@@ -211,12 +280,26 @@ function clearEntryMessage() {
   clearNotice(elements.entryMessageBox);
 }
 
+async function ensureSessionReadyForWrite() {
+  if (!currentSession || !currentSession.access_token) {
+    throw new Error("Sessao expirada. Inicia sessao novamente.");
+  }
+
+  return currentSession;
+}
+
 function setOcrMessage(message, tone = "info") {
   setNotice(elements.ocrMessageBox, message, tone);
 }
 
 function clearOcrMessage() {
   clearNotice(elements.ocrMessageBox);
+}
+
+function preventNumberInputWheelChange(event) {
+  if (document.activeElement === event.currentTarget) {
+    event.preventDefault();
+  }
 }
 
 function openImportModal() {
@@ -1411,8 +1494,15 @@ async function handleLogout() {
   setMessage("Sessão terminada.");
 }
 
-async function handleBetSubmit(event) {
-  event.preventDefault();
+async function submitBetForm() {
+  if (isSubmittingBet) {
+    return;
+  }
+
+  if (!elements.betForm.reportValidity()) {
+    return;
+  }
+
   clearMessage();
   clearEntryMessage();
 
@@ -1438,48 +1528,38 @@ async function handleBetSubmit(event) {
     return;
   }
 
+  isSubmittingBet = true;
   elements.saveBetButton.disabled = true;
   elements.saveBetButton.textContent = editingBetId ? "A atualizar..." : "A guardar...";
   setEntryMessage("A guardar aposta...");
+  const successMessage = editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.";
+  const profit = calculateProfit(stake, odds, status, settlementReturn);
+  const profitAmount = calculateProfitAmount(stake, profit, stakeAmount);
+  const payload = {
+    user_id: currentUser.id,
+    tipster: elements.tipster.value.trim() || null,
+    bookie: elements.bookie.value.trim() || null,
+    sport: elements.sport.value.trim() || null,
+    event_name: elements.eventName.value.trim(),
+    market_name: elements.marketName.value.trim(),
+    bet_type: deriveBetType(elements.marketName.value),
+    bet_date: elements.betDate.value,
+    stake,
+    stake_amount: stakeAmount,
+    odds,
+    status,
+    settlement_return: settlementReturn,
+    profit,
+    profit_amount: profitAmount,
+    notes: elements.notes.value.trim() || null
+  };
 
   try {
-    const successMessage = editingBetId ? "Aposta atualizada com sucesso." : "Aposta guardada com sucesso.";
-    const nextButtonLabel = editingBetId ? "Atualizar aposta" : "Guardar aposta";
-    const profit = calculateProfit(stake, odds, status, settlementReturn);
-    const profitAmount = calculateProfitAmount(stake, profit, stakeAmount);
-
-    const payload = {
-      user_id: currentUser.id,
-      tipster: elements.tipster.value.trim() || null,
-      bookie: elements.bookie.value.trim() || null,
-      sport: elements.sport.value.trim() || null,
-      event_name: elements.eventName.value.trim(),
-      market_name: elements.marketName.value.trim(),
-      bet_type: deriveBetType(elements.marketName.value),
-      bet_date: elements.betDate.value,
-      stake,
-      stake_amount: stakeAmount,
-      odds,
-      status,
-      settlement_return: settlementReturn,
-      profit,
-      profit_amount: profitAmount,
-      notes: elements.notes.value.trim() || null
-    };
-
-    const query = editingBetId
-      ? supabaseClient.from("bets").update(payload).eq("id", editingBetId)
-      : supabaseClient.from("bets").insert(payload);
-
-    const { error } = await query;
-
-    if (error) {
-      setEntryMessage(error.message, "warning");
-      elements.saveBetButton.textContent = nextButtonLabel;
-      return;
-    }
-
+    await ensureSessionReadyForWrite();
+    await writeBetRecord(payload, editingBetId);
     upsertLocalBet(payload);
+    queuePostSaveRefresh(payload);
+    fetchBets().catch(() => {});
 
     resetBetForm();
     setMessage(successMessage);
@@ -1492,6 +1572,7 @@ async function handleBetSubmit(event) {
     }
     return;
   } finally {
+    isSubmittingBet = false;
     elements.saveBetButton.disabled = false;
     if (editingBetId) {
       elements.saveBetButton.textContent = "Atualizar aposta";
@@ -1499,6 +1580,11 @@ async function handleBetSubmit(event) {
       elements.saveBetButton.textContent = "Guardar aposta";
     }
   }
+}
+
+async function handleBetSubmit(event) {
+  event.preventDefault();
+  await submitBetForm();
 }
 
 async function handleBetListClick(event) {
@@ -1724,6 +1810,7 @@ async function init() {
     return;
   }
 
+  currentSession = data.session || null;
   setAuthUi(data.session ? data.session.user : null);
 
   if (data.session && data.session.user) {
@@ -1736,6 +1823,7 @@ async function init() {
   }
 
   authSubscription = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    currentSession = session || null;
     setAuthUi(session ? session.user : null);
     await fetchSuggestions();
     await fetchBets();
@@ -1756,10 +1844,24 @@ elements.openImportButton.addEventListener("click", openImportModal);
 elements.closeImportButton.addEventListener("click", closeImportModal);
 elements.importButton.addEventListener("click", handleImportCsv);
 elements.betForm.addEventListener("submit", handleBetSubmit);
+elements.saveBetButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  if (!elements.saveBetButton.disabled) {
+    submitBetForm();
+  }
+});
 elements.cancelEditButton.addEventListener("click", resetBetForm);
 elements.betsList.addEventListener("click", handleBetListClick);
 elements.marketName.addEventListener("input", () => {
   elements.betType.value = deriveBetType(elements.marketName.value);
+});
+[
+  elements.stake,
+  elements.stakeAmount,
+  elements.odds,
+  elements.settlementReturn
+].forEach((input) => {
+  input.addEventListener("wheel", preventNumberInputWheelChange, { passive: false });
 });
 elements.status.addEventListener("change", updateSettlementVisibility);
 elements.filterStatus.addEventListener("change", () => {
