@@ -271,6 +271,10 @@ function formatCurrency(value) {
   }).format(Number(value));
 }
 
+function hasNumericValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "" && Number.isFinite(Number(value));
+}
+
 function formatStatus(status) {
   const labels = {
     pending: "Pendente",
@@ -327,6 +331,19 @@ function calculateProfitAmount(stakeUnits, profitUnits, stakeAmount) {
 
   const unitValue = numericStakeAmount / numericStakeUnits;
   return Number((numericProfitUnits * unitValue).toFixed(2));
+}
+
+function normalizeAmountFields(bet) {
+  const normalizedStakeAmount = hasNumericValue(bet.stake_amount) ? Number(bet.stake_amount) : null;
+  const normalizedProfitAmount = hasNumericValue(bet.profit_amount)
+    ? Number(bet.profit_amount)
+    : calculateProfitAmount(bet.stake, bet.profit, normalizedStakeAmount);
+
+  return {
+    ...bet,
+    stake_amount: normalizedStakeAmount,
+    profit_amount: normalizedProfitAmount
+  };
 }
 
 function validateBetForm() {
@@ -901,11 +918,11 @@ function queuePostSaveRefresh(payload) {
 }
 
 function upsertLocalBet(payload, savedId) {
-  const savedBet = {
+  const savedBet = normalizeAmountFields({
     id: savedId ?? editingBetId ?? `temp-${Date.now()}`,
     ...payload,
     created_at: new Date().toISOString()
-  };
+  });
 
   if (editingBetId) {
     bets = bets.map((bet) => (String(bet.id) === String(editingBetId) ? { ...bet, ...savedBet } : bet));
@@ -932,8 +949,8 @@ function upsertLocalBet(payload, savedId) {
 function updateStats(sourceBets) {
   const totalProfit = sourceBets.reduce((sum, bet) => sum + Number(bet.profit || 0), 0);
   const totalStake = sourceBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
-  const betsWithProfitAmount = sourceBets.filter((bet) => Number.isFinite(Number(bet.profit_amount)));
-  const betsWithStakeAmount = sourceBets.filter((bet) => Number.isFinite(Number(bet.stake_amount)));
+  const betsWithProfitAmount = sourceBets.filter((bet) => hasNumericValue(bet.profit_amount));
+  const betsWithStakeAmount = sourceBets.filter((bet) => hasNumericValue(bet.stake_amount));
   const totalProfitAmount = betsWithProfitAmount.reduce((sum, bet) => sum + Number(bet.profit_amount || 0), 0);
   const totalStakeAmount = betsWithStakeAmount.reduce((sum, bet) => sum + Number(bet.stake_amount || 0), 0);
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
@@ -1088,12 +1105,12 @@ function renderBets() {
     .map((bet) => {
       const profitClass = Number(bet.profit) >= 0 ? "status-won" : "status-lost";
       const notes = bet.notes ? `<p>${escapeHtml(bet.notes)}</p>` : "";
-      const stakeAmountTag = Number.isFinite(Number(bet.stake_amount))
+      const stakeAmountTag = hasNumericValue(bet.stake_amount)
         ? `<span>Stake real: ${formatCurrency(bet.stake_amount)}</span>`
         : "";
       const profitAmountTag = bet.status === "pending"
         ? ""
-        : Number.isFinite(Number(bet.profit_amount))
+        : hasNumericValue(bet.profit_amount)
           ? `<span class="${profitClass}">Lucro real: ${formatCurrency(bet.profit_amount)}</span>`
           : "";
 
@@ -1199,12 +1216,10 @@ async function fetchBets() {
   }
 
   bets = data || [];
-  bets = bets.map((bet) => ({
+  bets = bets.map((bet) => normalizeAmountFields({
     ...bet,
     bookie: bet.bookie || bet.bookmaker || null,
-    bet_type: bet.bet_type || deriveBetType(bet.market_name),
-    stake_amount: bet.stake_amount == null ? null : Number(bet.stake_amount),
-    profit_amount: bet.profit_amount == null ? null : Number(bet.profit_amount)
+    bet_type: bet.bet_type || deriveBetType(bet.market_name)
   }));
   updateAutocompleteOptions();
   renderBets();
