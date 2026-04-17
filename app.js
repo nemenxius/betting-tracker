@@ -673,13 +673,36 @@ function parseCsv(text) {
   });
 }
 
+function getImportedValue(row, keys) {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return row[key];
+    }
+  }
+
+  return "";
+}
+
+function parseImportedNumber(row, keys, fallback = Number.NaN) {
+  const rawValue = getImportedValue(row, keys);
+  const normalized = String(rawValue ?? "").trim().replace(",", ".");
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  const numericValue = Number(normalized);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
 function mapImportedRow(row) {
   const marketName = row.Bet || "";
   const status = normalizeImportedStatus(row.Result);
-  const stake = Number(row.Stake || 0);
-  const odds = Number(row.Odds || 0);
-  const payout = row.Payout === "" ? null : Number(row.Payout);
-  const profit = row["P/L"] === "" ? calculateProfit(stake, odds, status, payout) : Number(row["P/L"]);
+  const stake = parseImportedNumber(row, ["Stake (u)", "Stake"], 0);
+  const odds = parseImportedNumber(row, ["Odds"], 0);
+  const payout = parseImportedNumber(row, ["Payout"], null);
+  const importedProfit = parseImportedNumber(row, ["P/L (u)", "P/L", "P/L (€)"], Number.NaN);
+  const profit = Number.isFinite(importedProfit) ? importedProfit : calculateProfit(stake, odds, status, payout);
 
   return {
     user_id: currentUser ? currentUser.id : null,
@@ -1393,7 +1416,14 @@ async function handleImportCsv() {
 
     const payload = rows
       .map(mapImportedRow)
-      .filter((row) => row.bet_date && row.market_name && row.event_name);
+      .filter((row) => (
+        row.bet_date
+        && row.market_name
+        && row.event_name
+        && Number.isFinite(row.stake)
+        && Number.isFinite(row.odds)
+        && Number.isFinite(row.profit)
+      ));
 
     if (!payload.length) {
       setImportMessage("Não encontrei linhas importáveis após o mapeamento.", "warning");
